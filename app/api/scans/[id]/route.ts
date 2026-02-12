@@ -1,17 +1,11 @@
 export const runtime = "nodejs";
 
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-/* ──────────────────────────────────────────────
-   GET /api/scans/[id]
-   Returns a single scan by ID.
-   Next 16: params is a Promise.
-   ────────────────────────────────────────────── */
 export async function GET(
   _req: Request,
-ctx: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params;
 
@@ -29,14 +23,10 @@ ctx: { params: { id: string } }
     size: scan.size,
     resultJson: scan.resultJson,
     createdAt: scan.createdAt,
-   
+    engagement: scan.engagement,
   });
 }
 
-/* ──────────────────────────────────────────────
-   DELETE /api/scans/[id]
-   Soft-deletes or hard-deletes a scan (GDPR).
-   ────────────────────────────────────────────── */
 export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
@@ -49,7 +39,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Scan not found" }, { status: 404 });
   }
 
-  /* Hard delete – full GDPR compliance */
   await prisma.scan.delete({ where: { id } });
 
   return NextResponse.json({ deleted: true });
