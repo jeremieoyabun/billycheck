@@ -31,17 +31,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" className={`${nunito.variable} ${dmSans.variable} ${dmMono.variable}`}>
       <body className="min-h-screen bg-background font-body text-night">
         {/* ── Sticky navbar ── */}
-        <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-slate-200/60 px-5 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/brand/logo.png" alt="BillyCheck" width={140} height={36} priority />
-          </Link>
-          <Link
-            href="/scan"
-            className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 bg-billy-blue text-white rounded-xl text-sm font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
-          >
-            🔍 Checker ma facture
-          </Link>
-        </nav>
+        <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-slate-200/60 px-5 py-3 relative flex items-center justify-end">
+  
+  {/* Logo centré absolu */}
+  <div className="absolute left-1/2 -translate-x-1/2">
+    <Link href="/">
+      <Image
+        src="/brand/logo.png"
+        alt="BillyCheck"
+        width={160}
+        height={40}
+        priority
+      />
+    </Link>
+  </div>
+
+  {/* Bouton à droite */}
+  <Link
+    href="/scan"
+    className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2.5 bg-billy-blue text-white rounded-xl text-sm font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
+  >
+    🔍 Checker ma facture
+  </Link>
+</nav>
 
         <main>{children}</main>
       </body>
