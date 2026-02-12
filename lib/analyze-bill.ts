@@ -1,7 +1,14 @@
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+/* ──────────────────────────────────────────────
+   OpenAI lazy init (avoid build-time crash)
+   ────────────────────────────────────────────── */
+function getOpenAI() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
 /* ──────────────────────────────────────────────
    Types
@@ -38,7 +45,6 @@ export interface AnalysisResult {
 /* ──────────────────────────────────────────────
    GPT-4o Vision — Extract bill data
    ────────────────────────────────────────────── */
-
 const EXTRACTION_PROMPT = `Tu es Billy, un expert en factures d'énergie belges.
 Analyse cette facture d'électricité et extrais les informations suivantes au format JSON strict.
 
@@ -69,6 +75,11 @@ export async function extractBillData(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<ExtractedBill & { is_electricity: boolean; confidence: string }> {
+  const openai = getOpenAI();
+  if (!openai) {
+    throw new Error("OPENAI_API_KEY_MISSING");
+  }
+
   const base64 = fileBuffer.toString("base64");
   const isImage = mimeType.startsWith("image/");
 
@@ -87,18 +98,17 @@ export async function extractBillData(
       },
     ];
   } else {
-    // For PDFs: extract text first, then send to GPT-4o
-    // pdf-parse is optional — if not installed, send raw base64 as image
+    // For PDFs: extract text first, then send to GPT-4o (text)
     let pdfText = "";
+
     try {
-      // Dynamic import so the app doesn't crash if pdf-parse isn't installed
+      // pdf-parse can be default export or module itself depending on build
       const mod = await import("pdf-parse");
-// pdf-parse peut exposer la fonction soit en default, soit directement
-const pdfParse = (mod as any).default ?? (mod as any);
-const parsed = await pdfParse(fileBuffer);
-      pdfText = parsed.text;
+      const pdfParse = (mod as any).default ?? (mod as any);
+      const parsed = await pdfParse(fileBuffer);
+      pdfText = parsed?.text ?? "";
     } catch {
-      // Fallback: try sending as an image anyway (some models handle it)
+      // Fallback: try sending the PDF as "image_url" payload (some pipelines handle it)
       content = [
         { type: "text", text: EXTRACTION_PROMPT },
         {
@@ -121,14 +131,16 @@ const parsed = await pdfParse(fileBuffer);
     }
 
     if (pdfText.trim().length < 50) {
-      throw new Error("PDF illisible — texte insuffisant extrait");
+      throw new Error("PDF_TOO_SHORT");
     }
 
-    // Send extracted text to GPT-4o (no vision needed)
     content = [
       {
         type: "text",
-        text: `${EXTRACTION_PROMPT}\n\n--- CONTENU DE LA FACTURE ---\n\n${pdfText.slice(0, 8000)}`,
+        text: `${EXTRACTION_PROMPT}\n\n--- CONTENU DE LA FACTURE ---\n\n${pdfText.slice(
+          0,
+          8000
+        )}`,
       },
     ];
   }
@@ -146,18 +158,25 @@ const parsed = await pdfParse(fileBuffer);
 function parseGPTResponse(
   raw: string
 ): ExtractedBill & { is_electricity: boolean; confidence: string } {
-  // Strip markdown backticks if present
-  const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const cleaned = raw
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .trim();
 
   try {
     const data = JSON.parse(cleaned);
+
     return {
       provider: data.provider ?? null,
       plan_name: data.plan_name ?? null,
-      total_amount_eur: data.total_amount_eur != null ? Number(data.total_amount_eur) : null,
-      consumption_kwh: data.consumption_kwh != null ? Number(data.consumption_kwh) : null,
-      unit_price_eur_kwh: data.unit_price_eur_kwh != null ? Number(data.unit_price_eur_kwh) : null,
-      fixed_fees_eur: data.fixed_fees_eur != null ? Number(data.fixed_fees_eur) : null,
+      total_amount_eur:
+        data.total_amount_eur != null ? Number(data.total_amount_eur) : null,
+      consumption_kwh:
+        data.consumption_kwh != null ? Number(data.consumption_kwh) : null,
+      unit_price_eur_kwh:
+        data.unit_price_eur_kwh != null ? Number(data.unit_price_eur_kwh) : null,
+      fixed_fees_eur:
+        data.fixed_fees_eur != null ? Number(data.fixed_fees_eur) : null,
       billing_period: data.billing_period ?? null,
       postal_code: data.postal_code ?? null,
       meter_type: data.meter_type ?? null,
@@ -165,47 +184,37 @@ function parseGPTResponse(
       confidence: data.confidence ?? "medium",
     };
   } catch {
-    throw new Error("GPT a renvoyé un format invalide");
+    throw new Error("GPT_INVALID_JSON");
   }
 }
 
 /* ──────────────────────────────────────────────
    Compare with market offers & calculate savings
    ────────────────────────────────────────────── */
-export function compareOffers(
-  bill: ExtractedBill,
-  engagement: string
-): OfferResult[] {
-  // We need at least consumption to compare
+export function compareOffers(bill: ExtractedBill, engagement: string): OfferResult[] {
   const annualKwh = bill.consumption_kwh;
   if (!annualKwh || annualKwh <= 0) return [];
 
-  // Estimate current annual cost
   let currentAnnualCost: number;
 
   if (bill.total_amount_eur && bill.billing_period) {
-    // Try to annualize from the billing period
     const months = guessMonths(bill.billing_period);
     currentAnnualCost = (bill.total_amount_eur / months) * 12;
   } else if (bill.unit_price_eur_kwh) {
-    // Calculate from unit price
     const fixedAnnual = (bill.fixed_fees_eur ?? 5) * 12;
     currentAnnualCost = bill.unit_price_eur_kwh * annualKwh + fixedAnnual;
   } else if (bill.total_amount_eur) {
-    // Assume it's a monthly bill
     currentAnnualCost = bill.total_amount_eur * 12;
   } else {
     return [];
   }
 
-  // Filter out the current provider to avoid recommending the same one
   const currentProvider = (bill.provider ?? "").toLowerCase();
 
-  const results: OfferResult[] = offers
+  const results: OfferResult[] = (offers as any[])
     .filter((o) => o.provider.toLowerCase() !== currentProvider)
     .map((offer) => {
-      const annualCost =
-        offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
+      const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
       const savings = Math.round(currentAnnualCost - annualCost);
       const savingsPercent = Math.round((savings / currentAnnualCost) * 100);
 
@@ -220,29 +229,31 @@ export function compareOffers(
         url: offer.url,
       };
     })
-    .filter((o) => o.estimated_savings > 10) // Only show if >10€ savings
+    .filter((o) => o.estimated_savings > 10)
     .sort((a, b) => b.estimated_savings - a.estimated_savings)
-    .slice(0, 3); // Top 3
+    .slice(0, 3);
 
   return results;
 }
 
 function guessMonths(period: string): number {
-  // Try to detect if it's monthly, bi-monthly, quarterly, or annual
   const lower = period.toLowerCase();
   if (lower.includes("an") || lower.includes("year")) return 12;
   if (lower.includes("trim") || lower.includes("quarter")) return 3;
   if (lower.includes("bim") || lower.includes("2 mois")) return 2;
-  // If contains a range like "01/2025 - 12/2025", count months
-  const rangeMatch = period.match(/(\d{1,2})[/\-.](\d{4})\s*[-–]\s*(\d{1,2})[/\-.](\d{4})/);
+
+  const rangeMatch = period.match(
+    /(\d{1,2})[/\-.](\d{4})\s*[-–]\s*(\d{1,2})[/\-.](\d{4})/
+  );
+
   if (rangeMatch) {
-    const startMonth = parseInt(rangeMatch[1]);
-    const startYear = parseInt(rangeMatch[2]);
-    const endMonth = parseInt(rangeMatch[3]);
-    const endYear = parseInt(rangeMatch[4]);
+    const startMonth = parseInt(rangeMatch[1], 10);
+    const startYear = parseInt(rangeMatch[2], 10);
+    const endMonth = parseInt(rangeMatch[3], 10);
+    const endYear = parseInt(rangeMatch[4], 10);
     return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
   }
-  // Default: assume it's one month
+
   return 1;
 }
 
@@ -254,15 +265,12 @@ export async function analyzeBill(
   mimeType: string,
   engagement: string
 ): Promise<AnalysisResult> {
-  // Step 1: Extract data from the bill via GPT-4o
   const extracted = await extractBillData(fileBuffer, mimeType);
 
-  // Step 2: Validate it's an electricity bill
   if (!extracted.is_electricity) {
     throw new Error("NOT_ELECTRICITY");
   }
 
-  // Step 3: Build the clean bill object
   const bill: ExtractedBill = {
     provider: extracted.provider,
     plan_name: extracted.plan_name,
@@ -275,7 +283,6 @@ export async function analyzeBill(
     meter_type: extracted.meter_type,
   };
 
-  // Step 4: Compare with market offers
   const offerResults = compareOffers(bill, engagement);
 
   return {
