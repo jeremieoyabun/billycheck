@@ -96,7 +96,7 @@ export default function QuiSommesNousPage() {
             <div className="bg-white border border-slate-200 rounded-3xl p-3 shadow-sm">
               <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50">
                 <Image
-                  src="/team/team.jpg"
+                  src="/team.jpg"
                   alt="L’équipe BillyCheck"
                   fill
                   className="object-cover"
@@ -105,7 +105,7 @@ export default function QuiSommesNousPage() {
                 />
               </div>
               <p className="text-xs text-slate-500 mt-3 px-2">
-                Photo d’équipe. Remplacez l’image par la vôtre dans <span className="font-mono">/public/team/team.jpg</span>.
+                <span className="font-mono">/public/team.jpg</span>.
               </p>
             </div>
           </div>
