@@ -26,7 +26,7 @@ export async function GET(
     size: scan.size,
     resultJson: scan.resultJson,
     createdAt: scan.createdAt,
-    updatedAt: scan.updatedAt,
+   
   });
 }
 
