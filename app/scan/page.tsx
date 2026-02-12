@@ -30,21 +30,26 @@ export default function ScanPage() {
 
       try {
         /* ── Create scan record ── */
-        const createRes = await fetch("/api/scans", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            originalName: file.name,
-            mimeType: file.type,
-            size: file.size,
-            engagement,
-          }),
-        });
+       const createRes = await fetch("/api/scans", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    originalName: file.name,
+    mimeType: file.type,
+    size: file.size,
+    engagement,
+  }),
+});
 
-        if (!createRes.ok) throw new Error("Failed to create scan");
-        const scan = await createRes.json();
-        const id = scan.id;
-        setScanId(id);
+const data = await createRes.json();
+if (!createRes.ok || !data?.ok || !data?.scan?.id) {
+  console.error("Create scan failed:", data);
+  throw new Error(data?.error ?? "Failed to create scan");
+}
+
+const id = data.scan.id;
+setScanId(id);
+
 
         /* ── Trigger processing (send the file as FormData) ── */
         const form = new FormData();
@@ -64,12 +69,11 @@ export default function ScanPage() {
         const result = await processRes.json();
 
         /* ── Success → redirect ── */
-        if (result.status === "DONE") {
-          router.push(`/result/${id}`);
-        } else {
-          /* Shouldn't happen but handle gracefully */
-          throw new Error("Unexpected status: " + result.status);
-        }
+       if (result?.scan?.status === "DONE") {
+  router.push(`/result/${id}`);
+} else {
+  throw new Error("Unexpected status: " + (result?.scan?.status ?? "null"));
+}
       } catch (err) {
         console.error("Scan error:", err);
         setStep("failed");
@@ -102,11 +106,11 @@ export default function ScanPage() {
         if (!res.ok) throw new Error("Retry failed");
         const result = await res.json();
 
-        if (result.status === "DONE") {
-          router.push(`/result/${scanId}`);
-        } else {
-          throw new Error("Unexpected status");
-        }
+if (result?.scan?.status === "DONE") {
+  router.push(`/result/${scanId}`);
+} else {
+  throw new Error("Unexpected status: " + (result?.scan?.status ?? "null"));
+}
       } catch {
         setStep("failed");
       }

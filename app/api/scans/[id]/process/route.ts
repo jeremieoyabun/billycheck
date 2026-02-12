@@ -1,17 +1,16 @@
 export const runtime = "nodejs";
 
-
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+ctx: { params: { id: string } }
 ) {
-  const { id } = await ctx.params;
+  const { id } = ctx.params;
 
   const form = await req.formData();
   const file = form.get("file") as File | null;
-  const engagement = form.get("engagement") as string | null;
+  const engagement = (form.get("engagement") as string | null) ?? "unknown";
 
   if (!file) {
     return Response.json(
@@ -24,37 +23,35 @@ export async function POST(
     where: { id },
     data: {
       status: "PROCESSING",
-      engagement: engagement ?? "unknown",
+      engagement,
     },
   });
 
-  // ---- MOCK RESULT compatible avec INTEGRATION.md ----
-
   const resultJson = {
-    bill: {
-      provider: "Engie",
-      plan_name: "Flexi Variable",
-      total_amount_eur: 184.32,
-      consumption_kwh: 640,
-      unit_price_eur_kwh: 0.27,
-      fixed_fees_eur: 18,
-      billing_period: "Jan 2026",
-      postal_code: "4000",
-      meter_type: "Single",
-    },
-    offers: [
+    vendor: "Engie",
+    category: "Electricity",
+    total: 184.32,
+    currency: "EUR",
+    period: "Jan 2026",
+    verdict: "Potentially overpriced",
+    alternatives: [
       {
         provider: "Luminus",
-        plan: "Optifix",
-        estimated_savings: 48,
-        savings_percent: 12,
-        price_kwh: 0.24,
+        price: 136.32,
+        estimatedSaving: 48,
+        url: "https://example.com",
         type: "Fixed",
         green: true,
-        url: "https://example.com",
       },
     ],
-    engagement: engagement ?? "unknown",
+    engagement,
+    // debug utile pendant le dev, tu peux supprimer après
+    debug: {
+      receivedFile: true,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    },
   };
 
   const scan = await prisma.scan.update({

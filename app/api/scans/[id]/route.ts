@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
    ────────────────────────────────────────────── */
 export async function GET(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+ctx: { params: { id: string } }
 ) {
   const { id } = await ctx.params;
 
