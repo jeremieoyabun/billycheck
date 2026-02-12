@@ -79,7 +79,12 @@ export default function Home() {
 
       {/* ── Final CTA ── */}
       <section className="px-5 py-12 text-center bg-gradient-to-b from-background to-blue-50">
-        <Billy expression="success" size={100} />
+<div className="flex justify-center mb-3">
+  <div className="animate-billy-float">
+    <Billy expression="success" size={170} />
+  </div>
+</div>
+
         <h2 className="font-display font-extrabold text-2xl mt-3 mb-2">
           Allez, montre-moi cette facture.
         </h2>

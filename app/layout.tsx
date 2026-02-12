@@ -39,8 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <Image
         src="/brand/logo.png"
         alt="BillyCheck"
-        width={160}
-        height={40}
+        width={170}
+        height={44}
         priority
       />
     </Link>
