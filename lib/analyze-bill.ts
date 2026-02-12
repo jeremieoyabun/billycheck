@@ -92,8 +92,10 @@ export async function extractBillData(
     let pdfText = "";
     try {
       // Dynamic import so the app doesn't crash if pdf-parse isn't installed
-      const pdfParse = (await import("pdf-parse")).default;
-      const parsed = await pdfParse(fileBuffer);
+      const mod = await import("pdf-parse");
+// pdf-parse peut exposer la fonction soit en default, soit directement
+const pdfParse = (mod as any).default ?? (mod as any);
+const parsed = await pdfParse(fileBuffer);
       pdfText = parsed.text;
     } catch {
       // Fallback: try sending as an image anyway (some models handle it)
