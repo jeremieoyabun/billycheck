@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+
+
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
