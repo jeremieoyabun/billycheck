@@ -4,26 +4,23 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: Request,
-ctx: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
-  const { id } = ctx.params;
+  const { id } = await ctx.params;
 
   const form = await req.formData();
   const file = form.get("file") as File | null;
-  const engagement = (form.get("engagement") as string | null) ?? "unknown";
+  const engagement = form.get("engagement") as string | null;
 
   if (!file) {
-    return Response.json(
-      { ok: false, error: "No file provided" },
-      { status: 400 }
-    );
+    return Response.json({ ok: false, error: "No file provided" }, { status: 400 });
   }
 
   await prisma.scan.update({
     where: { id },
     data: {
       status: "PROCESSING",
-      engagement,
+      engagement: engagement ?? "unknown",
     },
   });
 
@@ -44,14 +41,7 @@ ctx: { params: { id: string } }
         green: true,
       },
     ],
-    engagement,
-    // debug utile pendant le dev, tu peux supprimer après
-    debug: {
-      receivedFile: true,
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-    },
+    engagement: engagement ?? "unknown",
   };
 
   const scan = await prisma.scan.update({
