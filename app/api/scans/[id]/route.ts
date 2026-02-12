@@ -1,45 +1,39 @@
+import { prisma } from "@/lib/prisma";
+import type { NextRequest } from "next/server";
+
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-
 export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await ctx.params;
+  const { id } = await params;
 
-  const scan = await prisma.scan.findUnique({ where: { id } });
-
-  if (!scan) {
-    return NextResponse.json({ error: "Scan not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    id: scan.id,
-    status: scan.status,
-    originalName: scan.originalName,
-    mimeType: scan.mimeType,
-    size: scan.size,
-    resultJson: scan.resultJson,
-    createdAt: scan.createdAt,
-    engagement: scan.engagement,
+  console.log("SCAN_GET", {
+    id,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    host:
+      process.env.PGHOST ||
+      process.env.POSTGRES_HOST ||
+      process.env.PGHOST_UNPOOLED ||
+      "unknown",
   });
-}
 
-export async function DELETE(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  const { id } = await ctx.params;
+  try {
+    const scan = await prisma.scan.findUnique({
+      where: { id },
+    });
 
-  const scan = await prisma.scan.findUnique({ where: { id } });
+    if (!scan) {
+      return Response.json({ error: "Scan not found", id }, { status: 404 });
+    }
 
-  if (!scan) {
-    return NextResponse.json({ error: "Scan not found" }, { status: 404 });
+    return Response.json({ ok: true, scan });
+  } catch (e) {
+    console.error("SCAN_GET_ERROR", e);
+    return Response.json(
+      { error: "Failed to fetch scan", id },
+      { status: 500 }
+    );
   }
-
-  await prisma.scan.delete({ where: { id } });
-
-  return NextResponse.json({ deleted: true });
 }
