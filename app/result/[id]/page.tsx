@@ -1,111 +1,182 @@
 import Link from "next/link";
-import { Billy } from "@/components/Billy";
-import { FAQ } from "@/components/FAQ";
+import { prisma } from "@/lib/prisma";
 
-export default function Home() {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function formatEur(n: number) {
+  return new Intl.NumberFormat("fr-BE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
+export default async function ResultPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  const scan = await prisma.scan.findUnique({ where: { id } });
+
+  if (!scan) {
+    return (
+      <main className="max-w-4xl mx-auto py-14 px-6">
+        <h1 className="text-2xl font-semibold">Scan introuvable</h1>
+        <p className="mt-3 text-gray-600">
+          On ne retrouve pas ce scan: <span className="font-mono">{id}</span>
+        </p>
+        <Link className="inline-block mt-6 underline" href="/scan">
+          Relancer un scan
+        </Link>
+      </main>
+    );
+  }
+
+  const status = scan.status;
+
+  // Tant que ce n’est pas DONE, on affiche un état clair
+  if (status !== "DONE") {
+    return (
+      <main className="max-w-4xl mx-auto py-14 px-6">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold">Analyse en cours</h1>
+          <Link className="text-sm underline" href="/scan">
+            Nouveau scan
+          </Link>
+        </div>
+
+        <p className="mt-3 text-gray-600">
+          Statut: <span className="font-semibold">{status}</span>
+        </p>
+
+        <div className="mt-8 rounded-2xl border p-5">
+          <p className="font-semibold">Scan ID</p>
+          <p className="mt-2 font-mono text-sm">{id}</p>
+          <p className="mt-4 text-sm text-gray-600">
+            Si ça reste bloqué, relance un scan ou réessaie dans quelques secondes.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const result: any = scan.resultJson ?? null;
+  const bill = result?.bill ?? null;
+  const offers = result?.offers ?? [];
+
   return (
-    <>
-      {/* ── Hero ── */}
-      <section className="px-5 pt-12 pb-10 text-center bg-gradient-to-b from-blue-50 to-background">
-        <div className="animate-billy-float inline-block mb-4">
-          <Billy expression="normal" size={140} />
+    <main className="max-w-5xl mx-auto py-14 px-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Résultat</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Scan ID: <span className="font-mono">{id}</span>
+          </p>
         </div>
-        <h1 className="font-display font-black text-[clamp(28px,6vw,42px)] leading-tight mb-3">
-          Hé 👋 Moi c'est <span className="text-billy-blue">Billy</span>.
-        </h1>
-        <p className="text-lg text-slate-600 max-w-md mx-auto leading-relaxed mb-7">
-          Envoie-moi ta facture d'électricité, je te dis en 30&nbsp;secondes
-          si tu pourrais payer moins cher.
-        </p>
-        <Link
-          href="/scan"
-          className="inline-flex items-center gap-2 px-9 py-4 bg-billy-blue text-white rounded-2xl text-lg font-display font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
-        >
-          🔍 Checker ma facture
+
+        <Link className="text-sm underline" href="/scan">
+          Scanner une autre facture
         </Link>
-        <p className="text-[13px] text-slate-400 mt-3.5">
-          Gratuit · Sans inscription · Facture supprimée après analyse
-        </p>
-      </section>
+      </div>
 
-      {/* ── How it works ── */}
-      <section className="px-5 py-12 max-w-xl mx-auto">
-        <h2 className="font-display font-extrabold text-2xl text-center mb-1">Comment ça marche ?</h2>
-        <p className="text-center text-slate-500 text-[15px] mb-8">
-          Trois étapes. 30 secondes. C'est tout.
-        </p>
-        <div className="flex flex-col gap-4">
-          {([
-            ["📸", "Envoie ta facture", "Photo, PDF ou capture d'écran — tout marche."],
-            ["🔍", "Billy analyse", "Je lis ta facture et je compare avec les offres du marché."],
-            ["💡", "Tu découvres le résultat", "Je te montre les offres qui pourraient te convenir, avec une estimation des économies possibles."],
-          ] as const).map(([icon, title, desc], i) => (
-            <div key={i} className="flex gap-4 items-start bg-white p-5 rounded-2xl border border-slate-200">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl shrink-0">
-                {icon}
-              </div>
-              <div>
-                <div className="font-bold text-base mb-0.5">{title}</div>
-                <div className="text-sm text-slate-500 leading-relaxed">{desc}</div>
-              </div>
+      {/* Résumé facture */}
+      <section className="mt-10 rounded-2xl border p-6">
+        <h2 className="text-lg font-semibold">Facture détectée</h2>
+
+        {!bill ? (
+          <p className="mt-3 text-gray-600">Aucune donnée extraite.</p>
+        ) : (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Fournisseur</p>
+              <p className="mt-1 font-semibold">{bill.provider ?? "Non détecté"}</p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Trust ── */}
-      <section className="px-5 pb-12 max-w-xl mx-auto">
-        <div className="grid grid-cols-3 gap-3">
-          {([
-            ["🔒", "Confidentiel", "Facture supprimée immédiatement après analyse"],
-            ["🎁", "1er check gratuit", "Puis 0,99\u00a0€ — moins qu'un café"],
-            ["⚡", "30 secondes", "Billy va vite. Très vite."],
-          ] as const).map(([icon, title, desc], i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-              <div className="text-3xl mb-2">{icon}</div>
-              <div className="font-bold text-sm mb-1">{title}</div>
-              <div className="text-xs text-slate-500 leading-snug">{desc}</div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Offre</p>
+              <p className="mt-1 font-semibold">{bill.plan_name ?? "Non détectée"}</p>
             </div>
-          ))}
-        </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Montant total</p>
+              <p className="mt-1 font-semibold">
+                {typeof bill.total_amount_eur === "number"
+                  ? formatEur(bill.total_amount_eur)
+                  : "Non détecté"}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Période</p>
+              <p className="mt-1 font-semibold">{bill.billing_period ?? "Non détectée"}</p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Code postal</p>
+              <p className="mt-1 font-semibold">{bill.postal_code ?? "Non détecté"}</p>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-gray-500">Compteur</p>
+              <p className="mt-1 font-semibold">{bill.meter_type ?? "Non détecté"}</p>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* ── FAQ ── */}
-      <section className="px-5 pb-12 max-w-xl mx-auto">
-        <h2 className="font-display font-extrabold text-2xl text-center mb-6">Questions fréquentes</h2>
-        <FAQ />
+      {/* Offres */}
+      <section className="mt-8 rounded-2xl border p-6">
+        <h2 className="text-lg font-semibold">Meilleures alternatives</h2>
+
+        {offers.length === 0 ? (
+          <p className="mt-3 text-gray-600">
+            Pas d’offres affichées pour l’instant. Il manque souvent la consommation (kWh) pour estimer
+            des économies fiables.
+          </p>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {offers.map((o: any) => (
+              <a
+                key={`${o.provider}-${o.plan}`}
+                href={o.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl border p-5 hover:shadow-sm transition"
+              >
+                <p className="font-semibold">{o.provider}</p>
+                <p className="mt-1 text-sm text-gray-600">{o.plan}</p>
+
+                <div className="mt-4 text-sm">
+                  <p>
+                    Économies estimées:{" "}
+                    <span className="font-semibold">
+                      {typeof o.estimated_savings === "number"
+                        ? formatEur(o.estimated_savings)
+                        : "N/A"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-gray-600">
+                    Prix kWh: {typeof o.price_kwh === "number" ? `${o.price_kwh} €` : "N/A"}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* ── Final CTA ── */}
-      <section className="px-5 py-12 text-center bg-gradient-to-b from-background to-blue-50">
-        <Billy expression="success" size={100} />
-        <h2 className="font-display font-extrabold text-2xl mt-3 mb-2">
-          Allez, montre-moi cette facture.
-        </h2>
-        <p className="text-slate-500 text-[15px] mb-6">
-          En 30&nbsp;secondes, tu sauras si tu pourrais payer moins.
-        </p>
-        <Link
-          href="/scan"
-          className="inline-flex items-center gap-2 px-8 py-4 bg-billy-blue text-white rounded-2xl text-base font-display font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
-        >
-          🔍 Checker ma facture gratuitement
-        </Link>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="px-5 py-6 border-t border-slate-200 text-center text-xs text-slate-400 space-y-1.5">
-        <div className="flex justify-center gap-4 flex-wrap">
-          <span className="cursor-pointer hover:text-slate-600">Politique de confidentialité</span>
-          <span>·</span>
-          <span className="cursor-pointer hover:text-slate-600">CGU</span>
-          <span>·</span>
-          <span className="cursor-pointer hover:text-slate-600">Mentions légales</span>
-          <span>·</span>
-          <span>contact@billycheck.com</span>
-        </div>
-        <div>BillyCheck © 2026 — Billy ne fournit pas de conseil financier ou juridique.</div>
-      </footer>
-    </>
+      {/* Debug léger (temporaire) */}
+      <details className="mt-10">
+        <summary className="cursor-pointer text-sm text-gray-600">
+          Voir le JSON (debug)
+        </summary>
+        <pre className="mt-4 text-xs bg-gray-50 p-4 rounded-xl overflow-auto">
+          {JSON.stringify(scan.resultJson, null, 2)}
+        </pre>
+      </details>
+    </main>
   );
 }
