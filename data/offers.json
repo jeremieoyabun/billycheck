@@ -1,0 +1,65 @@
+[
+  {
+    "provider": "TotalEnergies",
+    "plan": "Pixie Energie",
+    "price_kwh": 0.2650,
+    "fixed_fee_month": 5.50,
+    "type": "Fixe 1 an",
+    "green": true,
+    "url": "https://www.totalenergies.be"
+  },
+  {
+    "provider": "Luminus",
+    "plan": "Fix Online",
+    "price_kwh": 0.2790,
+    "fixed_fee_month": 4.80,
+    "type": "Fixe 1 an",
+    "green": false,
+    "url": "https://www.luminus.be"
+  },
+  {
+    "provider": "Eneco",
+    "plan": "Sun Fix",
+    "price_kwh": 0.2910,
+    "fixed_fee_month": 4.20,
+    "type": "Fixe 1 an",
+    "green": true,
+    "url": "https://www.eneco.be"
+  },
+  {
+    "provider": "Bolt",
+    "plan": "Bolt Electricity",
+    "price_kwh": 0.2720,
+    "fixed_fee_month": 0.00,
+    "type": "Variable",
+    "green": true,
+    "url": "https://www.boltenergie.be"
+  },
+  {
+    "provider": "ENGIE",
+    "plan": "Easy Fix",
+    "price_kwh": 0.3050,
+    "fixed_fee_month": 5.90,
+    "type": "Fixe 1 an",
+    "green": false,
+    "url": "https://www.engie.be"
+  },
+  {
+    "provider": "Mega",
+    "plan": "Mega Easy",
+    "price_kwh": 0.2680,
+    "fixed_fee_month": 3.50,
+    "type": "Variable",
+    "green": false,
+    "url": "https://www.mega.be"
+  },
+  {
+    "provider": "Octa+",
+    "plan": "EcoFix",
+    "price_kwh": 0.2850,
+    "fixed_fee_month": 5.00,
+    "type": "Fixe 1 an",
+    "green": true,
+    "url": "https://www.octaplus.be"
+  }
+]

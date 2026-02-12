@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       originalName: body.originalName ?? null,
       mimeType: body.mimeType ?? null,
       size: body.size ?? null,
+      engagement: body.engagement ?? null, // ← FIX: was missing
     },
   });
 
