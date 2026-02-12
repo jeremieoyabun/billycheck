@@ -15,7 +15,7 @@ export default function Home() {
           Hé 👋 Moi c'est <span className="text-billy-blue">Billy</span>.
         </h1>
         <p className="text-lg text-slate-600 max-w-md mx-auto leading-relaxed mb-7">
-          Envoie-moi ta facture d'électricité, je te dis en 30&nbsp;secondes
+          Envoie-moi ta facture d'électricité, je te dis en 10&nbsp;secondes
           si tu pourrais payer moins cher.
         </p>
         <Link
@@ -33,7 +33,7 @@ export default function Home() {
       <section className="px-5 py-12 max-w-xl mx-auto">
         <h2 className="font-display font-extrabold text-2xl text-center mb-1">Comment ça marche ?</h2>
         <p className="text-center text-slate-500 text-[15px] mb-8">
-          Trois étapes. 30 secondes. C'est tout.
+          Trois étapes. 10 secondes. C'est tout.
         </p>
         <div className="flex flex-col gap-4">
           {([
@@ -60,7 +60,7 @@ export default function Home() {
           {([
             ["🔒", "Confidentiel", "Facture supprimée immédiatement après analyse"],
             ["🎁", "1er check gratuit", "Puis 0,99\u00a0€ — moins qu'un café"],
-            ["⚡", "30 secondes", "Billy va vite. Très vite."],
+            ["⚡", "10 secondes", "Billy va vite. Très vite."],
           ] as const).map(([icon, title, desc], i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
               <div className="text-3xl mb-2">{icon}</div>
@@ -84,7 +84,7 @@ export default function Home() {
           Allez, montre-moi cette facture.
         </h2>
         <p className="text-slate-500 text-[15px] mb-6">
-          En 30&nbsp;secondes, tu sauras si tu pourrais payer moins.
+          En 10&nbsp;secondes, tu sauras si tu pourrais payer moins.
         </p>
         <Link
           href="/scan"
@@ -94,19 +94,35 @@ export default function Home() {
         </Link>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="px-5 py-6 border-t border-slate-200 text-center text-xs text-slate-400 space-y-1.5">
+            {/* ── Footer ── */}
+      <footer className="px-5 py-6 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2">
         <div className="flex justify-center gap-4 flex-wrap">
-          <span className="cursor-pointer hover:text-slate-600">Politique de confidentialité</span>
-          <span>·</span>
-          <span className="cursor-pointer hover:text-slate-600">CGU</span>
-          <span>·</span>
-          <span className="cursor-pointer hover:text-slate-600">Mentions légales</span>
-          <span>·</span>
-          <span>contact@billycheck.com</span>
+          <Link href="/qui-sommes-nous" className="hover:text-slate-800 hover:underline">
+            Qui sommes-nous
+          </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/politique-de-confidentialite" className="hover:text-slate-800 hover:underline">
+            Politique de confidentialité
+          </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/cgu" className="hover:text-slate-800 hover:underline">
+            CGU
+          </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/mentions-legales" className="hover:text-slate-800 hover:underline">
+            Mentions légales
+          </Link>
+          <span className="text-slate-300">·</span>
+          <a href="mailto:contact@billycheck.com" className="hover:text-slate-800 hover:underline">
+            contact@billycheck.com
+          </a>
         </div>
-        <div>BillyCheck © 2026 — Billy ne fournit pas de conseil financier ou juridique.</div>
+
+        <div className="text-slate-400">
+          BillyCheck © 2026 — Billy ne fournit pas de conseil financier ou juridique.
+        </div>
       </footer>
+
     </>
   );
 }
