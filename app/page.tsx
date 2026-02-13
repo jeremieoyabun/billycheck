@@ -98,36 +98,6 @@ export default function Home() {
           🔍 Checker ma facture gratuitement
         </Link>
       </section>
-
-            {/* ── Footer ── */}
-      <footer className="px-5 py-6 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2">
-        <div className="flex justify-center gap-4 flex-wrap">
-          <Link href="/qui-sommes-nous" className="hover:text-slate-800 hover:underline">
-            Qui sommes-nous
-          </Link>
-          <span className="text-slate-300">·</span>
-          <Link href="/politique-de-confidentialite" className="hover:text-slate-800 hover:underline">
-            Politique de confidentialité
-          </Link>
-          <span className="text-slate-300">·</span>
-          <Link href="/cgu" className="hover:text-slate-800 hover:underline">
-            CGU
-          </Link>
-          <span className="text-slate-300">·</span>
-          <Link href="/mentions-legales" className="hover:text-slate-800 hover:underline">
-            Mentions légales
-          </Link>
-          <span className="text-slate-300">·</span>
-          <a href="mailto:contact@billycheck.com" className="hover:text-slate-800 hover:underline">
-            contact@billycheck.com
-          </a>
-        </div>
-
-        <div className="text-slate-400">
-          BillyCheck © 2026 — Billy ne fournit pas de conseil financier ou juridique.
-        </div>
-      </footer>
-
     </>
   );
 }
