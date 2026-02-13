@@ -179,9 +179,24 @@ export function ResultCards({ data }: ResultCardsProps) {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Fournisseur" value={bill.provider ?? "Non détecté"} />
           <Field label="Offre détectée" value={bill.plan_name ?? "Non détectée"} />
-          <Field label="Montant" value={bill.total_amount_eur != null ? `${fmt(bill.total_amount_eur)}€` : "–"} mono />
-          <Field label="Consommation estimée" value={bill.consumption_kwh != null ? `${fmt(bill.consumption_kwh)} kWh` : "–"} mono />
+          <Field
+  label="Total TTC (période)"
+  value={bill.total_amount_eur != null ? `${fmt(bill.total_amount_eur)}€` : "–"}
+  mono
+/>
+          <Field
+  label="Consommation utilisée"
+  value={bill.consumption_kwh != null ? `${fmt(bill.consumption_kwh)} kWh` : "–"}
+  mono
+/>
+
         </div>
+        {bill.billing_period && (
+  <div className="mt-2 text-xs text-slate-400">
+    📅 Période analysée : <span className="text-slate-600">{bill.billing_period}</span>
+  </div>
+)}
+
         <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
           ℹ️ Ces données ont été extraites automatiquement. Vérifie qu'elles correspondent bien à ta situation.
         </div>
