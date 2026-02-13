@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* ── Custom Tailwind utilities via @theme ── */
 @theme {
   --color-billy-blue: #2563EB;
   --color-billy-blue-dark: #1D4ED8;
@@ -36,10 +35,14 @@
   }
 }
 
-/* ── Base ── */
 body {
   font-family: var(--font-body);
   background: var(--color-background);
   color: var(--color-night);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Safe area for mobile notch */
+.safe-top {
+  padding-top: max(0.625rem, env(safe-area-inset-top));
 }

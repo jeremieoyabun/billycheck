@@ -8,6 +8,7 @@ const ACCEPTED_TYPES = [
   "image/png",
   "image/webp",
 ];
+const BLOCKED_EXTENSIONS = [".psd"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 interface UploadDropzoneProps {
@@ -21,8 +22,17 @@ export function UploadDropzone({ onFileAccepted, disabled = false }: UploadDropz
   const [error, setError] = useState<string | null>(null);
 
   const validate = useCallback((file: File): string | null => {
-    if (!ACCEPTED_TYPES.includes(file.type)) return "Format non supporté. Envoie un PDF, JPG ou PNG.";
-    if (file.size > MAX_SIZE) return "Fichier trop lourd (max 10 MB).";
+    // Check PSD first (specific message)
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    if (BLOCKED_EXTENSIONS.includes(ext) || file.type === "image/vnd.adobe.photoshop") {
+      return "Les fichiers Photoshop (.psd) ne sont pas pris en charge. Merci d'exporter votre facture en PDF ou JPG.";
+    }
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return "Format non supporté. Envoie un PDF, JPG ou PNG.";
+    }
+    if (file.size > MAX_SIZE) {
+      return "Fichier trop lourd (max 10 MB).";
+    }
     return null;
   }, []);
 

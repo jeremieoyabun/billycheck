@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Scan {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  status         String
+  engagement     String?
+  fileKey        String?
+  originalName   String?
+  mimeType       String?
+  size           Int?
+  resultJson     Json?
+  userIdentifier String?
+
+  @@index([userIdentifier])
+}
+
+model UserQuota {
+  id             String   @id @default(cuid())
+  userIdentifier String   @unique
+  freeScansUsed  Int      @default(0)
+  paidCredits    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userIdentifier])
+}
+
+model StripePayment {
+  id             String   @id @default(cuid())
+  sessionId      String   @unique
+  userIdentifier String
+  amountCents    Int
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userIdentifier])
+  @@index([sessionId])
+}
