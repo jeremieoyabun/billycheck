@@ -34,12 +34,14 @@ function badgeClass(kind: "ok" | "partial") {
 export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
   const hasUnitPrice = bill.unit_price_eur_kwh != null;
   const hasConsumption = bill.consumption_kwh != null;
+
+  // ✅ abonnement: soit mensuel calculé, soit montant brut, sinon manquant
   const hasFees = bill.fixed_fees_monthly_eur != null || bill.fixed_fees_eur != null;
 
-  // “OK” si on a le trio clé (prix + conso + abonnement)
+  // Extraction “OK” si on a les 3 champs clés
   const extractionOk = hasUnitPrice && hasConsumption && hasFees;
 
-  // Abonnement
+  // Affichage abonnement
   const subscriptionValue =
     bill.fixed_fees_monthly_eur != null
       ? `${fmt(bill.fixed_fees_monthly_eur, 2)} € / mois`
@@ -47,36 +49,12 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
       ? `${fmt(bill.fixed_fees_eur, 2)} € (période)`
       : "Non détecté";
 
-  const subscriptionBadge =
+  const subscriptionHelper =
     bill.fixed_fees_monthly_eur != null
-      ? "Estimé"
+      ? "Calculé automatiquement à partir de la période de facturation."
       : bill.fixed_fees_eur != null
-      ? "Détecté"
-      : "Manquant";
-
-  const subscriptionTone =
-    bill.fixed_fees_monthly_eur != null
-      ? "green"
-      : bill.fixed_fees_eur != null
-      ? "slate"
-      : "amber";
-
-  const subscriptionHint =
-    bill.fixed_fees_monthly_eur != null
-      ? "Calculé automatiquement à partir de la période."
-      : bill.fixed_fees_eur != null
-      ? "Montant trouvé sur la période."
-      : "Souvent dans l’annexe “détail des coûts”.";
-
-  // Prix énergie
-  const unitPriceValue = hasUnitPrice
-    ? `${fmt(bill.unit_price_eur_kwh, 4)} €/kWh${isBiHoraire(bill.meter_type) ? " (moyenne)" : ""}`
-    : "–";
-
-  const meterBadge = isBiHoraire(bill.meter_type) ? "Bi-horaire" : "Simple";
-
-  // Conso
-  const consumptionValue = hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–";
+      ? "Montant trouvé sur la période (mensuel non calculable sans durée précise)."
+      : "Souvent présent sur une annexe ou une page “détail des coûts”.";
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -85,10 +63,10 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
-              Comment Billy a comparé ton contrat
+              Données utilisées
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              Les éléments ci-dessous sont utilisés pour comparer les offres.
+              Base de comparaison entre les offres
             </div>
           </div>
 
@@ -103,51 +81,46 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
         {!extractionOk && (
           <div className="mt-2 text-[12px] text-slate-500">
-            Certaines infos n’ont pas été trouvées. La comparaison reste possible, mais elle peut être moins précise.
+            Certaines infos n’ont pas été trouvées, mais la comparaison reste possible.
           </div>
         )}
       </div>
 
-      {/* ── Section 1 : Cards comparaison ── */}
-      <Section title="Base de comparaison" subtitle="Ce que BillyCheck utilise pour la simulation">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <MiniCard
-            title="Prix énergie"
-            value={unitPriceValue}
-            badge={meterBadge}
-            tone="blue"
-            subtitle="Prix utilisé pour estimer ton coût"
+      {/* ── Section 1 : Base de comparaison ── */}
+      <Section title="Base de comparaison" subtitle="Ce que BillyCheck compare entre les fournisseurs">
+        <div className="grid grid-cols-1 gap-3">
+          <MetricRow
+            label="Prix énergie HT"
+            value={hasUnitPrice ? `${fmt(bill.unit_price_eur_kwh, 4)} €/kWh${isBiHoraire(bill.meter_type) ? " (moyenne)" : ""}` : "–"}
+            highlight
           />
 
-          <MiniCard
-            title="Abonnement"
+          <MetricRow
+            label="Abonnement HT"
             value={subscriptionValue}
-            badge={subscriptionBadge}
-            tone={subscriptionTone}
-            subtitle={subscriptionHint}
+            helper={subscriptionHelper}
+            tone={hasFees ? "neutral" : "warn"}
           />
 
-          <MiniCard
-            title="Consommation"
-            value={consumptionValue}
-            badge="Base"
-            tone="slate"
-            subtitle="Valeur utilisée pour comparer"
+          <MetricRow
+            label="Consommation utilisée"
+            value={hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–"}
+            helper="Cette valeur sert de base pour estimer un coût annuel et comparer les offres."
           />
+
+          <p className="text-[11px] text-slate-400 italic leading-relaxed pt-1">
+            Taxes et TVA : identiques pour toutes les offres, incluses dans le total TTC.
+          </p>
         </div>
-
-        <p className="mt-4 text-[11px] text-slate-400 italic leading-relaxed">
-          Les taxes et la TVA sont réglementées et identiques chez tous les fournisseurs. Elles sont incluses dans le total TTC.
-        </p>
       </Section>
 
-      {/* ── Section 2 : Infos facture ── */}
-      <Section title="Données lues sur ta facture" subtitle="Informations extraites automatiquement">
-        <div className="grid grid-cols-1 gap-2">
-          <InfoLine icon="📅" label="Période analysée" value={bill.billing_period ?? "–"} />
-          <InfoLine icon="⚡" label="Type de compteur" value={bill.meter_type ?? "–"} />
-          <InfoLine icon="📍" label="Code postal" value={bill.postal_code ?? "–"} />
-          <InfoLine icon="🏢" label="Fournisseur" value={bill.provider ?? "–"} />
+      {/* ── Section 2 : Données de la facture ── */}
+      <Section title="Données de la facture" subtitle="Ce que nous avons lu sur ta facture">
+        <div className="grid grid-cols-1 gap-3">
+          <MetricRow label="Période analysée" value={bill.billing_period ?? "–"} />
+          <MetricRow label="Type de compteur" value={bill.meter_type ?? "–"} />
+          <MetricRow label="Code postal" value={bill.postal_code ?? "–"} />
+          <MetricRow label="Fournisseur détecté" value={bill.provider ?? "–"} />
         </div>
       </Section>
     </div>
@@ -179,63 +152,39 @@ function Section({
   );
 }
 
-function MiniCard({
-  title,
+function MetricRow({
+  label,
   value,
-  subtitle,
-  badge,
-  tone,
+  helper,
+  mono,
+  highlight,
+  tone = "neutral",
 }: {
-  title: string;
+  label: string;
   value: string;
-  subtitle?: string;
-  badge?: string;
-  tone: "blue" | "green" | "amber" | "slate";
+  helper?: string;
+  mono?: boolean;
+  highlight?: boolean;
+  tone?: "neutral" | "warn";
 }) {
-  const toneClass =
-    tone === "blue"
-      ? "bg-blue-50 border-blue-100"
-      : tone === "green"
-      ? "bg-emerald-50 border-emerald-100"
-      : tone === "amber"
-      ? "bg-amber-50 border-amber-100"
-      : "bg-slate-50 border-slate-100";
-
-  const badgeClass =
-    tone === "blue"
-      ? "bg-blue-100 text-blue-700"
-      : tone === "green"
-      ? "bg-emerald-100 text-emerald-700"
-      : tone === "amber"
-      ? "bg-amber-100 text-amber-800"
-      : "bg-slate-200 text-slate-700";
-
   return (
-    <div className={`rounded-2xl border ${toneClass} p-4`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-semibold text-slate-600">{title}</div>
-        {badge && (
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${badgeClass}`}>
-            {badge}
-          </span>
-        )}
+    <div className={`rounded-xl px-3 py-2 ${highlight ? "bg-slate-50" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[12px] text-slate-500">{label}</div>
+          {helper && (
+            <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              {helper}
+            </div>
+          )}
+        </div>
+
+        <div
+          className={`text-right shrink-0 text-[14px] font-extrabold ${mono ? "font-mono" : ""} ${tone === "warn" ? "text-amber-900" : "text-slate-900"}`}
+        >
+          {value}
+        </div>
       </div>
-
-      <div className="mt-2 text-[18px] font-extrabold text-slate-900">{value}</div>
-
-      {subtitle && <div className="mt-1 text-[12px] text-slate-500 leading-snug">{subtitle}</div>}
-    </div>
-  );
-}
-
-function InfoLine({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-100 px-4 py-3">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-slate-400">{icon}</span>
-        <span className="text-[13px] text-slate-600">{label}</span>
-      </div>
-      <div className="text-[14px] font-semibold text-slate-900 text-right shrink-0">{value}</div>
     </div>
   );
 }
