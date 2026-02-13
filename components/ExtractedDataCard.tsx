@@ -210,21 +210,21 @@ const badgeClass =
     ? "bg-amber-200 text-amber-900"
     : "bg-slate-300 text-slate-800";
 
- return (
-  <div className={`relative rounded-2xl border ${toneClass} p-4`}>
-    {/* Pastille en haut à droite */}
+return (
+  <div className={`relative rounded-2xl border ${toneClass} p-4 pt-6`}>
+    {/* Pastille centrée sur le bord supérieur */}
     {badge && (
       <span
-        className={`absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full font-bold shadow-sm ${badgeClass}`}
+        className={`absolute -top-3 left-1/2 -translate-x-1/2
+                    text-[11px] px-3 py-1 rounded-full font-bold
+                    border shadow-sm ${badgeClass}`}
       >
         {badge}
       </span>
     )}
 
     {/* Titre */}
-    <div className={`text-xs font-semibold text-slate-950 ${badge ? "pr-20" : ""}`}>
-      {title}
-    </div>
+    <div className="text-xs font-semibold text-slate-950">{title}</div>
 
     {/* Valeur */}
     <div className="mt-2 text-[18px] font-extrabold text-slate-900">{value}</div>
@@ -237,6 +237,7 @@ const badgeClass =
     )}
   </div>
 );
+
 
 }
 
