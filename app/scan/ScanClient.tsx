@@ -181,36 +181,43 @@ export default function ScanPage() {
 
           <UploadDropzone onFileAccepted={handleFileAccepted} />
 
-          {/* Bill type info */}
-          <div className="mt-5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-4">
-            <div className="font-semibold text-[14px] text-slate-800 mb-1">
-              Pour une analyse fiable, utilisez une facture annuelle ou de régularisation.
-            </div>
-            <div className="text-[13px] text-slate-600 mb-2.5">
-              Elle doit afficher :
-            </div>
-            <div className="space-y-1.5 text-[13px] text-slate-600 mb-3">
-              <div className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">✓</span>
-                <span>La consommation réelle en kWh</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">✓</span>
-                <span>Le détail du prix de l'énergie (HT)</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">✓</span>
-                <span>L'abonnement (HT)</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowBillModal(true)}
-              className="text-[13px] font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              En savoir plus →
-            </button>
-          </div>
-        </div>
+{/* Bill type info */}
+<div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
+  <div className="flex items-start gap-3 mb-3">
+    <div className="text-2xl">⚠️</div>
+    <div>
+      <div className="font-bold text-[15px] text-amber-900 mb-1">
+        Important : utilisez une facture annuelle ou de régularisation
+      </div>
+      <div className="text-[14px] text-amber-800">
+        Les échéanciers ou factures estimées ne permettent pas de comparer correctement les offres.
+      </div>
+    </div>
+  </div>
+
+  <div className="space-y-2 text-[14px] text-amber-900 mb-4">
+    <div className="flex items-start gap-2">
+      <span>✓</span>
+      <span>Consommation réelle en kWh</span>
+    </div>
+    <div className="flex items-start gap-2">
+      <span>✓</span>
+      <span>Détail du prix de l’énergie (HT)</span>
+    </div>
+    <div className="flex items-start gap-2">
+      <span>✓</span>
+      <span>Abonnement (HT)</span>
+    </div>
+  </div>
+
+  <button
+    onClick={() => setShowBillModal(true)}
+    className="w-full py-3 bg-amber-500 text-white rounded-xl text-sm font-bold shadow hover:bg-amber-600 transition-all"
+  >
+    📄 Voir un exemple de facture compatible
+  </button>
+</div>
+    </div>
       )}
 
       {/* ── ENGAGEMENT ── */}
