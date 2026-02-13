@@ -79,7 +79,9 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
   const consumptionValue = hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–";
 
   return (
-    <div className="bg-white border border-slate-300 shadow-sm rounded-2xl overflow-hidden">
+    <div className="relative bg-white border border-slate-300 shadow-sm rounded-2xl overflow-hidden">
+
+
 {/* ── Header ── */}
 <div className="relative px-5 pt-4 pb-3 border-b border-slate-200">
   {/* Badge en top-right, hors flux */}
