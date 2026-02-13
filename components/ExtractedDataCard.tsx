@@ -24,8 +24,8 @@ function isBiHoraire(meterType?: string | null) {
 
 function badgeClass(kind: "ok" | "partial") {
   return kind === "ok"
-    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-    : "bg-amber-50 text-amber-800 border-amber-200";
+    ? "bg-emerald-200 text-emerald-800 border-emerald-300"
+    : "bg-yellow-100 text-yellow-800 border-yellow-300";
 }
 
 /* ──────────────────────────────────────────────
@@ -62,7 +62,7 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
       <div className="px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="text-[13px] font-semibold text-slate-600 uppercase tracking-wider">
               Données utilisées
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
@@ -142,7 +142,7 @@ function Section({
   return (
     <div className="px-5 py-4 border-t border-slate-100">
       <div className="mb-3">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+        <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
           {title}
         </div>
         {subtitle && <div className="text-[12px] text-slate-400 mt-0.5">{subtitle}</div>}
@@ -171,7 +171,7 @@ function MetricRow({
     <div className={`rounded-xl px-3 py-2 ${highlight ? "bg-slate-50" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[12px] text-slate-500">{label}</div>
+          <div className="text-[12px] text-slate-600">{label}</div>
           {helper && (
             <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
               {helper}
@@ -180,7 +180,7 @@ function MetricRow({
         </div>
 
         <div
-          className={`text-right shrink-0 text-[14px] font-extrabold ${mono ? "font-mono" : ""} ${tone === "warn" ? "text-amber-900" : "text-slate-900"}`}
+          className={`text-right shrink-0 text-[14px] font-extrabold ${mono ? "font-mono" : ""} ${tone === "warn" ? "text-yellow-900" : "text-slate-900"}`}
         >
           {value}
         </div>
