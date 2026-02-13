@@ -6,6 +6,9 @@ interface ExtractedDataCardProps {
   bill: ExtractedBill;
 }
 
+/* ──────────────────────────────────────────────
+   Helpers
+   ────────────────────────────────────────────── */
 const fmt = (n: number | null | undefined, decimals = 2) =>
   n != null
     ? n.toLocaleString("fr-BE", {
@@ -14,26 +17,48 @@ const fmt = (n: number | null | undefined, decimals = 2) =>
       })
     : "–";
 
-function badgeTone(kind: "ok" | "warn") {
+function isBiHoraire(meterType?: string | null) {
+  const s = (meterType ?? "").toLowerCase();
+  return s.includes("bi") || s.includes("double") || s.includes("hc") || s.includes("hp");
+}
+
+function badgeClass(kind: "ok" | "partial") {
   return kind === "ok"
     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
     : "bg-amber-50 text-amber-800 border-amber-200";
 }
 
+/* ──────────────────────────────────────────────
+   Component
+   ────────────────────────────────────────────── */
 export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
   const hasUnitPrice = bill.unit_price_eur_kwh != null;
   const hasConsumption = bill.consumption_kwh != null;
-  const hasFees = bill.fixed_fees_eur != null;
 
-  const isBiHoraire =
-    bill.meter_type?.toLowerCase().includes("bi") ||
-    bill.meter_type?.toLowerCase().includes("double");
+  // ✅ abonnement: soit mensuel calculé, soit montant brut, sinon manquant
+  const hasFees = bill.fixed_fees_monthly_eur != null || bill.fixed_fees_eur != null;
 
-  const extractionIsPartial = !hasFees; // pour l’instant: abonnement souvent manquant
+  // Extraction “OK” si on a les 3 champs clés
+  const extractionOk = hasUnitPrice && hasConsumption && hasFees;
+
+  // Affichage abonnement
+  const subscriptionValue =
+    bill.fixed_fees_monthly_eur != null
+      ? `${fmt(bill.fixed_fees_monthly_eur, 2)} € / mois`
+      : bill.fixed_fees_eur != null
+      ? `${fmt(bill.fixed_fees_eur, 2)} € (période)`
+      : "Non détecté";
+
+  const subscriptionHelper =
+    bill.fixed_fees_monthly_eur != null
+      ? "Calculé automatiquement à partir de la période de facturation."
+      : bill.fixed_fees_eur != null
+      ? "Montant trouvé sur la période (mensuel non calculable sans durée précise)."
+      : "Souvent présent sur une annexe ou une page “détail des coûts”.";
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -41,91 +66,74 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
               Données utilisées
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              Ce sont les chiffres qui servent à comparer les offres.
+              Base de comparaison entre les offres
             </div>
           </div>
 
           <span
-            className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeTone(
-              extractionIsPartial ? "warn" : "ok"
+            className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeClass(
+              extractionOk ? "ok" : "partial"
             )}`}
           >
-            {extractionIsPartial ? "EXTRACTION PARTIELLE" : "EXTRACTION OK"}
+            {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
           </span>
         </div>
+
+        {!extractionOk && (
+          <div className="mt-2 text-[12px] text-slate-500">
+            Certaines infos n’ont pas été trouvées, mais la comparaison reste possible.
+          </div>
+        )}
       </div>
 
-      {/* SECTION 1 — Base de comparaison */}
+      {/* ── Section 1 : Base de comparaison ── */}
       <Section title="Base de comparaison" subtitle="Ce que BillyCheck compare entre les fournisseurs">
         <div className="grid grid-cols-1 gap-3">
-          <DataRow
+          <MetricRow
             label="Prix énergie HT"
             value={
               hasUnitPrice
-                ? `${fmt(bill.unit_price_eur_kwh, 4)} €/kWh${isBiHoraire ? " (moyenne)" : ""}`
+                ? `${fmt(bill.unit_price_eur_kwh, 4)} €/kWh${isBiHoraire(bill.meter_type) ? " (moyenne)" : ""}`
                 : "–"
             }
             highlight
           />
 
-          <DataRow
+          <MetricRow
             label="Abonnement HT"
-            value={
-              hasFees
-                ? `${fmt(bill.fixed_fees_eur, 2)} € (montant détecté)`
-                : "Non détecté"
-            }
-            helper={
-              hasFees
-                ? "Astuce: on peut convertir en €/mois si on a la durée exacte de facturation."
-                : "Souvent présent sur une annexe ou une page “détail des coûts”."
-            }
+            value={subscriptionValue}
+            helper={subscriptionHelper}
             tone={hasFees ? "neutral" : "warn"}
           />
 
-          <DataRow
+          <MetricRow
             label="Consommation utilisée"
             value={hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–"}
-            helper="On utilise cette valeur comme base pour estimer un coût annuel et comparer les offres."
+            helper="Cette valeur sert de base pour estimer un coût annuel et comparer les offres."
           />
 
           <p className="text-[11px] text-slate-400 italic leading-relaxed pt-1">
-            Les taxes et la TVA sont réglementées et identiques pour toutes les offres. Elles sont incluses dans le total TTC.
+            Taxes et TVA : identiques pour toutes les offres, incluses dans le total TTC.
           </p>
-
-          {bill.fixed_fees_monthly_eur != null ? (
-  <Row
-    label="Abonnement électricité HT (estimé mensuel)"
-    value={`${fmt(bill.fixed_fees_monthly_eur)} € / mois`}
-  />
-) : bill.fixed_fees_eur != null ? (
-  <Row
-    label="Abonnement électricité HT (fixe sur la période)"
-    value={`${fmt(bill.fixed_fees_eur)} €`}
-  />
-) : (
-  <Row
-    label="Abonnement électricité HT"
-    value="Non détecté"
-  />
-)}
-
         </div>
       </Section>
 
-      {/* SECTION 2 — Données facture */}
+      {/* ── Section 2 : Données de la facture ── */}
       <Section title="Données de la facture" subtitle="Ce que nous avons lu sur ta facture">
         <div className="grid grid-cols-1 gap-3">
-          <DataRow label="Période analysée" value={bill.billing_period ?? "–"} />
-          <DataRow label="Type de compteur" value={bill.meter_type ?? "–"} />
-          <DataRow label="Code postal" value={bill.postal_code ?? "–"} />
-          <DataRow label="Fournisseur détecté" value={bill.provider ?? "–"} />
+          <MetricRow label="Période analysée" value={bill.billing_period ?? "–"} />
+          <MetricRow label="Type de compteur" value={bill.meter_type ?? "–"} />
+          <MetricRow label="Code postal" value={bill.postal_code ?? "–"} />
+          <MetricRow label="Fournisseur détecté" value={bill.provider ?? "–"} />
         </div>
       </Section>
     </div>
   );
 }
 
+/* ──────────────────────────────────────────────
+   UI building blocks
+   ────────────────────────────────────────────── */
 function Section({
   title,
   subtitle,
@@ -138,7 +146,9 @@ function Section({
   return (
     <div className="px-5 py-4 border-t border-slate-100">
       <div className="mb-3">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          {title}
+        </div>
         {subtitle && <div className="text-[12px] text-slate-400 mt-0.5">{subtitle}</div>}
       </div>
       {children}
@@ -146,7 +156,7 @@ function Section({
   );
 }
 
-function DataRow({
+function MetricRow({
   label,
   value,
   helper,
@@ -162,12 +172,17 @@ function DataRow({
   tone?: "neutral" | "warn";
 }) {
   return (
-    <div className={`rounded-xl ${highlight ? "bg-slate-50" : ""} px-3 py-2`}>
+    <div className={`rounded-xl px-3 py-2 ${highlight ? "bg-slate-50" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[12px] text-slate-500">{label}</div>
-          {helper && <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{helper}</div>}
+          {helper && (
+            <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              {helper}
+            </div>
+          )}
         </div>
+
         <div
           className={`text-right shrink-0 text-[14px] font-extrabold ${
             mono ? "font-mono" : ""
@@ -176,28 +191,6 @@ function DataRow({
           {value}
         </div>
       </div>
-    </div>
-  );
-}
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-[13px] text-slate-600">{label}</span>
-      <span
-        className={`text-[14px] font-semibold text-slate-900 text-right shrink-0 ${
-          mono ? "font-mono" : ""
-        }`}
-      >
-        {value}
-      </span>
     </div>
   );
 }
