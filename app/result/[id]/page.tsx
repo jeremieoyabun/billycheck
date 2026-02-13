@@ -17,6 +17,20 @@ type ScanRecord = {
   createdAt?: string;
 };
 
+type ScanApiResponse =
+  | ScanRecord
+  | { ok: boolean; scan?: ScanRecord; error?: string };
+
+function unwrapScan(payload: ScanApiResponse): ScanRecord | null {
+  // Case 1: API returns { ok: true, scan: {...} }
+  if (payload && typeof payload === "object" && "ok" in payload) {
+    const p = payload as { ok: boolean; scan?: ScanRecord; error?: string };
+    return p.scan ?? null;
+  }
+  // Case 2: API returns the scan object directly
+  return payload as ScanRecord;
+}
+
 export default function ResultPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -29,9 +43,21 @@ export default function ResultPage() {
     try {
       const res = await fetch(`/api/scans/${id}`);
       if (!res.ok) throw new Error("Scan non trouvé");
-      const data: ScanRecord = await res.json();
-      setScan(data);
-      return data.status;
+
+      const payload: ScanApiResponse = await res.json();
+      const s = unwrapScan(payload);
+
+      if (!s) {
+        // API wrapper without scan or unexpected payload
+        throw new Error(
+          typeof payload === "object" && payload && "error" in payload
+            ? String((payload as any).error)
+            : "Réponse API invalide"
+        );
+      }
+
+      setScan(s);
+      return s.status;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
       return null;
@@ -91,7 +117,8 @@ export default function ResultPage() {
         <Billy expression="error" size={100} />
         <div className="mt-4 flex flex-col gap-2.5 items-center">
           <ChatBubble>
-            <strong>Oups 😅</strong><br />
+            <strong>Oups 😅</strong>
+            <br />
             {error ?? "Je n'ai pas trouvé cette analyse."}
           </ChatBubble>
         </div>
@@ -123,7 +150,7 @@ export default function ResultPage() {
     );
   }
 
-  /* ── DONE → show results ── */
+  /* DONE → show results */
   return (
     <div className="px-5 py-6 pb-16 max-w-xl mx-auto">
       {scan.resultJson ? (
@@ -158,7 +185,9 @@ export default function ResultPage() {
         <button
           onClick={() => {
             if (confirm("Supprimer toutes les données de cette analyse ?")) {
-              fetch(`/api/scans/${id}`, { method: "DELETE" }).then(() => router.push("/"));
+              fetch(`/api/scans/${id}`, { method: "DELETE" }).then(() =>
+                router.push("/")
+              );
             }
           }}
           className="flex-1 text-center py-3 bg-white border border-red-200 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
