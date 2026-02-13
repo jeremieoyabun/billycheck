@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Nunito, DM_Sans, DM_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
-import { Footer } from "@/src/components/Footer";
 import "./globals.css";
 
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-display", weight: ["700", "800", "900"] });
