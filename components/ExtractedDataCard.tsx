@@ -80,33 +80,35 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
   return (
     <div className="bg-white border border-slate-300 shadow-sm rounded-2xl overflow-hidden">
-      {/* ── Header ── */}
-      <div className="px-5 pt-4 pb-3 border-b border-slate-200">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
-              Comment Billy a comparé ton contrat
-            </div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              Les éléments ci-dessous sont utilisés pour comparer les offres.
-            </div>
-          </div>
+{/* ── Header ── */}
+<div className="relative px-5 pt-4 pb-3 border-b border-slate-200">
+  {/* Badge en top-right, hors flux */}
+  <span
+    className={`absolute top-4 right-5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeClass(
+      extractionOk ? "ok" : "partial"
+    )}`}
+  >
+    {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
+  </span>
 
-          <span
-            className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeClass(
-              extractionOk ? "ok" : "partial"
-            )}`}
-          >
-            {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
-          </span>
-        </div>
+  {/* Textes avec padding-right pour ne pas passer sous le badge */}
+  <div className="pr-44">
+    <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
+      Comment Billy a comparé ton contrat
+    </div>
 
-        {!extractionOk && (
-          <div className="mt-2 text-[12px] text-slate-500">
-            Certaines infos n’ont pas été trouvées. La comparaison reste possible, mais elle peut être moins précise.
-          </div>
-        )}
-      </div>
+    <div className="text-xs text-slate-500 mt-0.5">
+      Les éléments ci-dessous sont utilisés pour comparer les offres.
+    </div>
+  </div>
+
+  {!extractionOk && (
+    <div className="mt-2 text-[12px] text-slate-500 pr-44">
+      Certaines infos n’ont pas été trouvées. La comparaison reste possible, mais elle peut être moins précise.
+    </div>
+  )}
+</div>
+
 
       {/* ── Section 1 : Cards comparaison ── */}
       <Section title="Base de comparaison" subtitle="Ce que BillyCheck utilise pour la simulation">
