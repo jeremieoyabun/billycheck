@@ -79,15 +79,15 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
   const consumptionValue = hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–";
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+    <div className="bg-white border border-slate-300 shadow-sm rounded-2xl overflow-hidden">
       {/* ── Header ── */}
-      <div className="px-5 pt-4 pb-3 border-b border-slate-100">
+      <div className="px-5 pt-4 pb-3 border-b border-slate-200">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
               Comment Billy a comparé ton contrat
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
+            <div className="text-xs text-slate-500 mt-0.5">
               Les éléments ci-dessous sont utilisés pour comparer les offres.
             </div>
           </div>
@@ -136,7 +136,7 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
           />
         </div>
 
-        <p className="mt-4 text-[11px] text-slate-400 italic leading-relaxed">
+        <p className="mt-4 text-[11px] text-slate-500 italic leading-relaxed">
           Les taxes et la TVA sont réglementées et identiques chez tous les fournisseurs. Elles sont incluses dans le total TTC.
         </p>
       </Section>
@@ -167,12 +167,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="px-5 py-4 border-t border-slate-100">
+    <div className="px-6 py-5 border-t border-slate-200">
       <div className="mb-3">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
           {title}
         </div>
-        {subtitle && <div className="text-[12px] text-slate-400 mt-0.5">{subtitle}</div>}
+        {subtitle && <div className="text-[12px] text-slate-500 mt-0.5">{subtitle}</div>}
       </div>
       {children}
     </div>
@@ -192,28 +192,28 @@ function MiniCard({
   badge?: string;
   tone: "blue" | "green" | "amber" | "slate";
 }) {
-  const toneClass =
-    tone === "blue"
-      ? "bg-blue-50 border-blue-100"
-      : tone === "green"
-      ? "bg-emerald-50 border-emerald-100"
-      : tone === "amber"
-      ? "bg-amber-50 border-amber-100"
-      : "bg-slate-50 border-slate-100";
+const toneClass =
+  tone === "blue"
+    ? "bg-blue-50 border border-blue-200"
+    : tone === "green"
+    ? "bg-emerald-50 border border-emerald-200"
+    : tone === "amber"
+    ? "bg-amber-50 border border-amber-300"
+    : "bg-slate-50 border border-slate-300";
 
-  const badgeClass =
-    tone === "blue"
-      ? "bg-blue-100 text-blue-700"
-      : tone === "green"
-      ? "bg-emerald-100 text-emerald-700"
-      : tone === "amber"
-      ? "bg-amber-100 text-amber-800"
-      : "bg-slate-200 text-slate-700";
+const badgeClass =
+  tone === "blue"
+    ? "bg-blue-200 text-blue-900"
+    : tone === "green"
+    ? "bg-emerald-200 text-emerald-900"
+    : tone === "amber"
+    ? "bg-amber-200 text-amber-900"
+    : "bg-slate-300 text-slate-800";
 
   return (
     <div className={`rounded-2xl border ${toneClass} p-4`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-semibold text-slate-600">{title}</div>
+        <div className="text-xs font-semibold text-slate-950">{title}</div>
         {badge && (
           <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${badgeClass}`}>
             {badge}
@@ -230,12 +230,21 @@ function MiniCard({
 
 function InfoLine({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-100 px-4 py-3">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-slate-400">{icon}</span>
-        <span className="text-[13px] text-slate-600">{label}</span>
+    <div className="flex items-center justify-between gap-3 rounded-xl 
+                    bg-white border border-slate-200 shadow-sm
+                    px-5 py-4 transition-colors">
+      
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-slate-600 text-lg">{icon}</span>
+        <span className="text-[14px] font-medium text-slate-900/80">
+          {label}
+        </span>
       </div>
-      <div className="text-[14px] font-semibold text-slate-900 text-right shrink-0">{value}</div>
+
+      <div className="text-[15px] font-bold text-slate-900 text-right shrink-0">
+        {value}
+      </div>
     </div>
   );
 }
+
