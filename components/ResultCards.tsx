@@ -10,18 +10,22 @@ export interface ExtractedBill {
   provider?: string | null;
   plan_name?: string | null;
   total_amount_eur?: number | null;
+
   consumption_kwh?: number | null;
+
   unit_price_eur_kwh?: number | null;
+
+  // fixe sur période (si extrait)
   fixed_fees_eur?: number | null;
+
+  // ✅ équivalent mensuel calculé
+  fixed_fees_monthly_eur?: number | null;
+
   billing_period?: string | null;
   postal_code?: string | null;
   meter_type?: string | null;
-  consumption_kwh_period?: number
-  consumption_kwh_annual?: number
-  fixed_fees_monthly_eur?: number
-  total_annual_estimated_eur?: number
-  fixed_fees_monthly_eur?: number | null;
 }
+
 
 export interface Offer {
   provider: string;

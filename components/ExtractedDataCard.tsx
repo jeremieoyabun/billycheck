@@ -179,3 +179,25 @@ function DataRow({
     </div>
   );
 }
+function Row({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[13px] text-slate-600">{label}</span>
+      <span
+        className={`text-[14px] font-semibold text-slate-900 text-right shrink-0 ${
+          mono ? "font-mono" : ""
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}

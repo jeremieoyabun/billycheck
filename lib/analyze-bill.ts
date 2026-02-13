@@ -6,11 +6,6 @@ export interface ExtractedBill {
   unit_price_eur_kwh: number | null;
   fixed_fees_eur: number | null;
   fixed_fees_monthly_eur: number | null;
-
-
-  // ✅ nouveau
-  fixed_fees_monthly_eur: number | null;
-
   billing_period: string | null;
   postal_code: string | null;
   meter_type: string | null;
@@ -200,6 +195,7 @@ function parseGPTResponse(raw: string): ExtractedBillWithMeta {
       data.unit_price_eur_kwh != null ? Number(data.unit_price_eur_kwh) : null,
     fixed_fees_eur:
       data.fixed_fees_eur != null ? Number(data.fixed_fees_eur) : null,
+    fixed_fees_monthly_eur: null,
     billing_period: data.billing_period ?? null,
     postal_code: data.postal_code ?? null,
     meter_type: data.meter_type ?? null,
@@ -328,10 +324,6 @@ export async function analyzeBill(
   if (!extracted.is_electricity) {
     throw new Error("NOT_ELECTRICITY");
   }
-
-  const days = parsePeriodToDays(extracted.billing_period);
-
-  const fixedMonthly = computeMonthlyFromPeriodFixed(extracted.fixed_fees_eur, days);
 
   const days = parsePeriodToDays(extracted.billing_period);
   const fixedMonthly = computeMonthlyFromPeriodFixed(extracted.fixed_fees_eur, days);
