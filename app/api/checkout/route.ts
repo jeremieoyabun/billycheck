@@ -7,8 +7,16 @@ import { getUserIdentifier, setUserIdCookie } from "@/lib/user-id.server";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    let uid = body.userIdentifier as string | undefined;
+    // Stripe not configured -> don't crash build / return 503 at runtime
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Stripe not configured" },
+        { status: 503 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({} as any));
+    let uid: string | undefined = body?.userIdentifier;
 
     // Fallback to server-side identification
     if (!uid) {
@@ -22,7 +30,6 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card", "bancontact"],
-      // Apple Pay & Google Pay are auto-enabled with card when configured in Stripe Dashboard
       line_items: [
         {
           price_data: {
