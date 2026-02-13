@@ -85,33 +85,33 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
 {/* ── Header ── */}
 <div className="relative px-5 pt-4 pb-3 border-b border-slate-200">
-  {/* Badge en top-right, hors flux */}
+  
+  {/* Badge accroché au coin */}
   <span
-  className={`absolute -top-3 -right-3 z-20
-              text-[11px] font-bold px-3 py-1 rounded-full
-              border shadow-sm ${badgeClass(extractionOk ? "ok" : "partial")}`}
->
-  {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
-</span>
+    className={`absolute -top-3 -right-3 z-20
+                text-[11px] font-bold px-3 py-1 rounded-full
+                border shadow-sm ${badgeClass(extractionOk ? "ok" : "partial")}`}
+  >
+    {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
+  </span>
 
+  {/* Titre */}
+  <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
+    Comment Billy a comparé ton contrat
+  </div>
 
-  {/* Textes avec padding-right pour ne pas passer sous le badge */}
-  <div className="pr-44">
-    <div className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
-      Comment Billy a comparé ton contrat
-    </div>
-
-    <div className="text-xs text-slate-500 mt-0.5">
-      Les éléments ci-dessous sont utilisés pour comparer les offres.
-    </div>
+  {/* Texte principal */}
+  <div className="text-xs text-slate-600 mt-0.5 max-w-[85%]">
+    Les éléments ci-dessous sont utilisés pour comparer les offres.
   </div>
 
   {!extractionOk && (
-    <div className="mt-2 text-[12px] text-slate-500 pr-44">
+    <div className="mt-2 text-[12px] text-slate-600 max-w-[85%]">
       Certaines infos n’ont pas été trouvées. La comparaison reste possible, mais elle peut être moins précise.
     </div>
   )}
 </div>
+
 
 
       {/* ── Section 1 : Cards comparaison ── */}
