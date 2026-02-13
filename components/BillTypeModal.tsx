@@ -43,7 +43,7 @@ export function BillTypeModal({ open, onClose }: BillTypeModalProps) {
         <div className="bg-slate-100 rounded-xl overflow-hidden mb-4 aspect-[4/3] flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/bill-example-placeholder.png"
+            src="/bill-example.png"
             alt="Exemple de facture annuelle"
             className="w-full h-full object-contain"
             onError={(e) => {
