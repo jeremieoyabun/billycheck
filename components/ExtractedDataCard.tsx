@@ -79,19 +79,21 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
   const consumptionValue = hasConsumption ? `${fmt(bill.consumption_kwh, 0)} kWh` : "–";
 
   return (
-    <div className="relative bg-white border border-slate-300 shadow-sm rounded-2xl overflow-hidden">
+    <div className="relative bg-white border border-slate-300 shadow-sm rounded-2xl">
+
 
 
 {/* ── Header ── */}
 <div className="relative px-5 pt-4 pb-3 border-b border-slate-200">
   {/* Badge en top-right, hors flux */}
   <span
-    className={`absolute top-4 right-5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${badgeClass(
-      extractionOk ? "ok" : "partial"
-    )}`}
-  >
-    {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
-  </span>
+  className={`absolute -top-3 -right-3 z-20
+              text-[11px] font-bold px-3 py-1 rounded-full
+              border shadow-sm ${badgeClass(extractionOk ? "ok" : "partial")}`}
+>
+  {extractionOk ? "EXTRACTION OK" : "EXTRACTION PARTIELLE"}
+</span>
+
 
   {/* Textes avec padding-right pour ne pas passer sous le badge */}
   <div className="pr-44">
