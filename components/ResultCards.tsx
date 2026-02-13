@@ -16,6 +16,11 @@ export interface ExtractedBill {
   billing_period?: string | null;
   postal_code?: string | null;
   meter_type?: string | null;
+  consumption_kwh_period?: number
+  consumption_kwh_annual?: number
+  fixed_fees_monthly_eur?: number
+  total_annual_estimated_eur?: number
+  fixed_fees_monthly_eur?: number | null;
 }
 
 export interface Offer {
@@ -171,7 +176,7 @@ export function ResultCards({ data }: ResultCardsProps) {
           <Field label="Fournisseur" value={bill.provider ?? "Non détecté"} />
           <Field label="Offre détectée" value={bill.plan_name ?? "Non détectée"} />
           <Field label="Montant" value={bill.total_amount_eur != null ? `${fmt(bill.total_amount_eur)}€` : "–"} mono />
-          <Field label="Consommation estimée" value={bill.consumption_kwh != null ? `${fmt(bill.consumption_kwh)} kWh/an` : "–"} mono />
+          <Field label="Consommation estimée" value={bill.consumption_kwh != null ? `${fmt(bill.consumption_kwh)} kWh` : "–"} mono />
         </div>
         <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
           ℹ️ Ces données ont été extraites automatiquement. Vérifie qu'elles correspondent bien à ta situation.

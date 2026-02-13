@@ -1,3 +1,21 @@
+export interface ExtractedBill {
+  provider: string | null;
+  plan_name: string | null;
+  total_amount_eur: number | null;
+  consumption_kwh: number | null;
+  unit_price_eur_kwh: number | null;
+  fixed_fees_eur: number | null;
+  fixed_fees_monthly_eur: number | null;
+
+
+  // ✅ nouveau
+  fixed_fees_monthly_eur: number | null;
+
+  billing_period: string | null;
+  postal_code: string | null;
+  meter_type: string | null;
+}
+
 import OpenAI from "openai";
 import offers from "../data/offers.json";
 
@@ -56,15 +74,17 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans backticks, sans explication 
   "total_amount_eur": nombre ou null (montant total TTC en euros),
   "consumption_kwh": nombre ou null (consommation en kWh, annuelle de préférence, sinon celle indiquée),
   "unit_price_eur_kwh": nombre ou null (prix unitaire par kWh TTC),
-  "fixed_fees_eur": nombre ou null (redevance/abonnement fixe mensuel),
+  "fixed_fees_eur": nombre ou null (total redevances/abonnements fixes HT pour la période de facturation),
   "billing_period": "période de facturation (ex: 'Jan 2026' ou '01/2025 - 12/2025')",
   "postal_code": "code postal si visible, sinon null",
   "meter_type": "simple ou bi-horaire ou exclusif-nuit, sinon null",
   "is_electricity": true ou false (est-ce bien une facture d'électricité ?),
   "confidence": "high" ou "medium" ou "low" (confiance dans l'extraction)
+  
 }
 
 Règles :
+- fixed_fees_eur : additionne les lignes type "redevance fixe", "abonnement", "tarif prosumer", "forfait" si elles sont des frais fixes (pas l'énergie au kWh).
 - Si une valeur n'est pas visible ou lisible, mets null
 - Pour consumption_kwh, si tu vois une consommation mensuelle, multiplie par 12 pour estimer l'annuel
 - Pour unit_price_eur_kwh, essaie d'extraire le prix tout compris (pas juste l'énergie)
@@ -204,7 +224,8 @@ export function compareOffers(
     const months = guessMonths(bill.billing_period);
     currentAnnualCost = (bill.total_amount_eur / months) * 12;
   } else if (bill.unit_price_eur_kwh) {
-    const fixedAnnual = (bill.fixed_fees_eur ?? 5) * 12;
+    const monthlyFixed = bill.fixed_fees_monthly_eur ?? bill.fixed_fees_eur ?? 5;
+    const fixedAnnual = monthlyFixed * 12;
     currentAnnualCost = bill.unit_price_eur_kwh * annualKwh + fixedAnnual;
   } else if (bill.total_amount_eur) {
     currentAnnualCost = bill.total_amount_eur * 12;
@@ -263,6 +284,37 @@ function guessMonths(period: string): number {
   return 1;
 }
 
+function parsePeriodToDays(period: string | null): number | null {
+  if (!period) return null;
+
+  // Formats supportés :
+  // "10-12-2025 au 31-12-2025"
+  // "10/12/2025 au 31/12/2025"
+  const m = period.match(/(\d{2})[\/-](\d{2})[\/-](\d{4}).*?(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if (!m) return null;
+
+  const [, d1, mo1, y1, d2, mo2, y2] = m;
+  const start = new Date(Number(y1), Number(mo1) - 1, Number(d1));
+  const end = new Date(Number(y2), Number(mo2) - 1, Number(d2));
+
+  const ms = end.getTime() - start.getTime();
+  const days = Math.round(ms / (1000 * 60 * 60 * 24)) + 1; // inclusif
+  if (!Number.isFinite(days) || days <= 0 || days > 370) return null;
+
+  return days;
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function computeMonthlyFromPeriodFixed(fixedFeesPeriod: number | null, days: number | null): number | null {
+  if (fixedFeesPeriod == null || days == null || days <= 0) return null;
+  const monthly = (fixedFeesPeriod / days) * 30.44;
+  return Number.isFinite(monthly) ? round2(monthly) : null;
+}
+
+
 /* ──────────────────────────────────────────────
    Full analysis pipeline
    ────────────────────────────────────────────── */
@@ -277,17 +329,30 @@ export async function analyzeBill(
     throw new Error("NOT_ELECTRICITY");
   }
 
+  const days = parsePeriodToDays(extracted.billing_period);
+
+  const fixedMonthly = computeMonthlyFromPeriodFixed(extracted.fixed_fees_eur, days);
+
+  const days = parsePeriodToDays(extracted.billing_period);
+  const fixedMonthly = computeMonthlyFromPeriodFixed(extracted.fixed_fees_eur, days);
+
   const bill: ExtractedBill = {
     provider: extracted.provider,
     plan_name: extracted.plan_name,
     total_amount_eur: extracted.total_amount_eur,
     consumption_kwh: extracted.consumption_kwh,
     unit_price_eur_kwh: extracted.unit_price_eur_kwh,
-    fixed_fees_eur: extracted.fixed_fees_eur,
+
+    fixed_fees_eur: extracted.fixed_fees_eur,           // fixe sur la période
+    fixed_fees_monthly_eur: fixedMonthly,               // ✅ €/mois calculé
+
     billing_period: extracted.billing_period,
     postal_code: extracted.postal_code,
     meter_type: extracted.meter_type,
   };
+
+
+
 
   const offerResults = compareOffers(bill, engagement);
 
