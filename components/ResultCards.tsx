@@ -153,7 +153,7 @@ export function ResultCards({ data }: ResultCardsProps) {
             </ChatBubble>
             <ChatBubble delay={300}>
               D'après les données de ta facture, tu pourrais peut-être payer
-              moins cher. Voici ce que j'ai repéré — à toi de voir si ça te convient.
+              moins cher. Voici ce que j'ai repéré, à toi de voir si ça te convient.
             </ChatBubble>
           </>
         ) : (
@@ -221,7 +221,7 @@ export function ResultCards({ data }: ResultCardsProps) {
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
           <div className="font-bold text-[15px] mb-1.5">Comment vérifier ton engagement ?</div>
           <div className="text-[13px] text-slate-600 leading-relaxed space-y-1">
-            <p><strong>Option 1 :</strong> Regarde ta facture — la mention « fixe » avec une date de fin indique un engagement.</p>
+            <p><strong>Option 1 :</strong> Regarde ta facture, la mention « fixe » avec une date de fin indique un engagement.</p>
             <p><strong>Option 2 :</strong> Connecte-toi à l'espace client de ton fournisseur.</p>
             <p><strong>Option 3 :</strong> Appelle ton fournisseur et demande-leur directement.</p>
           </div>
