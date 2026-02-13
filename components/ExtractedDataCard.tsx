@@ -70,7 +70,7 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
   // Prix énergie
   const unitPriceValue = hasUnitPrice
-    ? `${fmt(bill.unit_price_eur_kwh, 4)} €/kWh${isBiHoraire(bill.meter_type) ? " (moyenne)" : ""}`
+    ? `${fmt(bill.unit_price_eur_kwh, 1)} €/kWh${isBiHoraire(bill.meter_type) ? " (moyenne)" : ""}`
     : "–";
 
   const meterBadge = isBiHoraire(bill.meter_type) ? "Bi-horaire" : "Simple";
