@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   <div className="absolute left-1/2 -translate-x-1/2">
     <Link href="/">
       <Image
-        src="/brand/logo-v2.png"
+        src="/brand/logo.png"
         alt="BillyCheck"
         width={170}
         height={44}
