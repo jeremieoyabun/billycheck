@@ -15,7 +15,7 @@ export default function Home() {
           Hé 👋 Moi c'est <span className="text-billy-blue">Billy</span>.
         </h1>
         <p className="text-lg text-slate-600 max-w-md mx-auto leading-relaxed mb-7">
-          Envoie-moi ta facture d'électricité, je te dis en 10&nbsp;secondes
+          Envoie-moi ta facture d'électricité, je te dis en 30&nbsp;secondes
           si tu pourrais payer moins cher.
         </p>
         <Link
@@ -33,7 +33,7 @@ export default function Home() {
       <section className="px-5 py-12 max-w-xl mx-auto">
         <h2 className="font-display font-extrabold text-2xl text-center mb-1">Comment ça marche ?</h2>
         <p className="text-center text-slate-500 text-[15px] mb-8">
-          Trois étapes. 10 secondes. C'est tout.
+          Trois étapes. 30 secondes. C'est tout.
         </p>
         <div className="flex flex-col gap-4">
           {([
@@ -89,7 +89,7 @@ export default function Home() {
           Allez, montre-moi cette facture.
         </h2>
         <p className="text-slate-500 text-[15px] mb-6">
-          En 10&nbsp;secondes, tu sauras si tu pourrais payer moins.
+          En 30&nbsp;secondes, tu sauras si tu pourrais payer moins.
         </p>
         <Link
           href="/scan"
