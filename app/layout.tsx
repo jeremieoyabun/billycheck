@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Nunito, DM_Sans, DM_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
-import { Footer } from "@/components/Footer";
+import { Footer } from "@/src/components/Footer";
 import "./globals.css";
 
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-display", weight: ["700", "800", "900"] });
@@ -44,7 +44,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <Link href="/" className="flex items-center gap-2">
       <Image src="/brand/logo.png" alt="BillyCheck" width={170} height={44} priority />
     </Link>
-
     {/* CTA (à droite sur desktop, n'influence pas le centrage mobile) */}
     <Link
       href="/scan"
