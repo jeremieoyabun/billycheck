@@ -766,25 +766,7 @@ export default function BillyCheckApp() {
             </button>
           </div>
 
-          {/* Footer */}
-          <footer style={{
-            padding: "24px 20px",
-            borderTop: "1px solid #E2E8F0",
-            textAlign: "center",
-            fontSize: "12px",
-            color: "#94A3B8",
-          }}>
-            <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap", marginBottom: "8px" }}>
-              <span style={{ cursor: "pointer" }}>Politique de confidentialité</span>
-              <span>·</span>
-              <span style={{ cursor: "pointer" }}>CGU</span>
-              <span>·</span>
-              <span style={{ cursor: "pointer" }}>Mentions légales</span>
-              <span>·</span>
-              <span>contact@billycheck.com</span>
-            </div>
-            <div>BillyCheck © 2026 — Billy ne fournit pas de conseil financier ou juridique.</div>
-          </footer>
+          
         </div>
       )}
 
