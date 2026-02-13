@@ -110,7 +110,7 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
       {/* ── Section 1 : Cards comparaison ── */}
       <Section title="Base de comparaison" subtitle="Ce que BillyCheck utilise pour la simulation">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
           <MiniCard
             title="Prix énergie"
             value={unitPriceValue}
@@ -211,18 +211,17 @@ const badgeClass =
     : "bg-slate-300 text-slate-800";
 
 return (
-  <div className={`relative rounded-2xl border ${toneClass} p-4 pt-6`}>
+  <div className={`relative rounded-2xl ${toneClass} p-4 pt-6`}>
     {/* Pastille centrée sur le bord supérieur */}
     {badge && (
-      <span
-        className={`absolute -top-3 left-1/2 -translate-x-1/2
-                    text-[11px] px-3 py-1 rounded-full font-bold
-                    border shadow-sm ${badgeClass}`}
-      >
-        {badge}
-      </span>
-    )}
-
+  <span
+    className={`absolute -top-3 left-1/2 -translate-x-1/2 z-10
+                text-[11px] px-3 py-1 rounded-full font-bold
+                border shadow-sm ${badgeClass}`}
+  >
+    {badge}
+  </span>
+)}
     {/* Titre */}
     <div className="text-xs font-semibold text-slate-950">{title}</div>
 
