@@ -15,13 +15,9 @@ export const metadata: Metadata = {
   title: "BillyCheck — Payez-vous trop cher votre électricité ?",
   description:
     "Scannez votre facture d'énergie. Billy l'analyse en 30 secondes et vous montre les offres potentiellement plus avantageuses. Premier check gratuit.",
-export const metadata: Metadata = {
-  ...
   icons: {
     icon: "/favicon.png",
   },
-};
-
   openGraph: {
     title: "BillyCheck — Payez-vous trop cher ?",
     description: "Scannez votre facture, découvrez vos économies potentielles en 30 secondes.",
