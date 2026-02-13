@@ -13,14 +13,14 @@ export async function POST(
 ) {
   const { id } = await ctx.params;
 
-  /* 1. Validate scan exists */
+  // 1) Validate scan exists
   const existing = await prisma.scan.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ ok: false, error: "Scan not found" }, { status: 404 });
   }
 
-  /* 2. Check quota BEFORE processing */
-  const uid = existing.userIdentifier;
+  // 2) Check quota BEFORE processing
+  const uid = existing.userIdentifier ?? null;
   if (uid) {
     const quota = await getQuotaStatus(uid);
     if (!quota.canScan) {
@@ -31,7 +31,7 @@ export async function POST(
     }
   }
 
-  /* 3. Read file from FormData */
+  // 3) Read file from FormData
   let file: File | null = null;
   let engagement = existing.engagement ?? "unknown";
 
@@ -44,7 +44,7 @@ export async function POST(
     // FormData parsing failed
   }
 
-  /* 4. Mark as PROCESSING */
+  // 4) Mark as PROCESSING
   await prisma.scan.update({
     where: { id },
     data: { status: "PROCESSING", engagement },
@@ -56,57 +56,57 @@ export async function POST(
     const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = file.type || "image/jpeg";
 
-    /* 5. Run GPT-4o analysis */
+    // 5) Run GPT analysis
     const result = await analyzeBill(buffer, mimeType, engagement);
 
-    /* 6. Validate bill type (detect estimated/schedule bills) */
+    // 6) Validate bill type (avoid false positives on regularization)
     const validation = validateBillForComparison({
-      subscription_ht_monthly: result.bill.fixed_fees_eur,
-      energy_amount_ht_total: result.bill.total_amount_eur,
-      total_kwh: result.bill.consumption_kwh,
-      raw_text: null, // We don't have raw text from GPT extraction
+      fixed_fees_eur: result.bill.fixed_fees_eur,
+      unit_price_eur_kwh: result.bill.unit_price_eur_kwh,
+      consumption_kwh: result.bill.consumption_kwh,
+      billing_period: result.bill.billing_period,
+      raw_text: null,
     });
 
-    if (!validation.valid) {
+    if (!validation.isComparable) {
       const scan = await prisma.scan.update({
         where: { id },
         data: {
           status: "FAILED",
-resultJson: JSON.parse(
-  JSON.stringify({
-    error: validation.code,
-    reason: validation.reason,
-    bill: result.bill,
-  })
-),
-
+          resultJson: JSON.parse(
+            JSON.stringify({
+              error: "BILL_NOT_COMPATIBLE",
+              reasons: validation.reasons,
+              bill: result.bill,
+            })
+          ),
         },
       });
 
       return NextResponse.json({
         ok: false,
         scan,
-        code: validation.code,
-        reason: validation.reason,
+        code: "BILL_NOT_COMPATIBLE",
+        reasons: validation.reasons,
       });
     }
 
-    /* 7. Save result & mark DONE */
+    // 7) Save result & mark DONE
     const scan = await prisma.scan.update({
       where: { id },
       data: {
         status: "DONE",
+        // Prisma Json type needs plain JSON
         resultJson: JSON.parse(JSON.stringify(result)),
       },
     });
 
-    /* 8. Consume credit AFTER successful scan (prevents double-spend on failures) */
+    // 8) Consume credit AFTER successful scan
     if (uid) {
       try {
         await consumeScanCredit(uid);
       } catch (err) {
         console.error(`[process] Failed to consume credit for ${uid}:`, err);
-        // Don't fail the scan if credit consumption fails
       }
     }
 
@@ -119,7 +119,7 @@ resultJson: JSON.parse(
       where: { id },
       data: {
         status: "FAILED",
-        resultJson: { error: message },
+        resultJson: JSON.parse(JSON.stringify({ error: message })),
       },
     });
 
