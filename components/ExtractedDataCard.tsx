@@ -210,22 +210,34 @@ const badgeClass =
     ? "bg-amber-200 text-amber-900"
     : "bg-slate-300 text-slate-800";
 
-  return (
-    <div className={`rounded-2xl border ${toneClass} p-4`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-semibold text-slate-950">{title}</div>
-        {badge && (
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${badgeClass}`}>
-            {badge}
-          </span>
-        )}
-      </div>
+ return (
+  <div className={`relative rounded-2xl border ${toneClass} p-4`}>
+    {/* Pastille en haut à droite */}
+    {badge && (
+      <span
+        className={`absolute top-3 right-3 text-[11px] px-2.5 py-1 rounded-full font-bold shadow-sm ${badgeClass}`}
+      >
+        {badge}
+      </span>
+    )}
 
-      <div className="mt-2 text-[18px] font-extrabold text-slate-900">{value}</div>
-
-      {subtitle && <div className="mt-1 text-[12px] text-slate-500 leading-snug">{subtitle}</div>}
+    {/* Titre */}
+    <div className={`text-xs font-semibold text-slate-950 ${badge ? "pr-20" : ""}`}>
+      {title}
     </div>
-  );
+
+    {/* Valeur */}
+    <div className="mt-2 text-[18px] font-extrabold text-slate-900">{value}</div>
+
+    {/* Sous-titre */}
+    {subtitle && (
+      <div className="mt-1 text-[12px] text-slate-500 leading-snug">
+        {subtitle}
+      </div>
+    )}
+  </div>
+);
+
 }
 
 function InfoLine({ icon, label, value }: { icon: string; label: string; value: string }) {
