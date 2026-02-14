@@ -137,6 +137,67 @@ function computeWeightedPrice(
   const weighted = (hpPrice * hpKwh + hcPrice * hcKwh) / total;
   return Number.isFinite(weighted) ? round4(weighted) : null;
 }
+function parseFRDate(d: string): Date | null {
+  // "21-12-2024"
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d.trim());
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const year = Number(m[3]);
+  if (!day || !month || !year) return null;
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return Number.isFinite(dt.getTime()) ? dt : null;
+}
+
+function billingPeriodLooksAnnual(period: string | null): boolean {
+  if (!period) return false;
+  // attendu: "21-12-2024 au 09-12-2025"
+  const parts = period.split("au").map((s) => s.trim());
+  if (parts.length !== 2) return false;
+  const a = parseFRDate(parts[0]);
+  const b = parseFRDate(parts[1]);
+  if (!a || !b) return false;
+  const days = Math.abs((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  return days >= 300; // ~10 mois -> on considère annuel
+}
+
+function maybeAnnualizeSubscription(bill: ExtractedBill): ExtractedBill {
+  const sub = bill.subscription_annual_ht_eur;
+  if (sub == null) return bill;
+
+  // Si c'est déjà clairement annuel (>= 60€), on touche pas
+  if (sub >= 60) return bill;
+
+  // Heuristique "quasi certain que c'est mensuel"
+  // 1) Période annuelle + 2) abonnement très bas (<= 35€)
+  const looksAnnual = billingPeriodLooksAnnual(bill.billing_period);
+  if (!looksAnnual || sub > 35) return bill;
+
+  // Check de cohérence via le total annuel si dispo
+  // total - (prix*kwh) doit être largement > sub si sub était mensuel
+  const total = bill.total_annual_ttc_eur;
+  const kwh = bill.consumption_kwh_annual;
+  const p = bill.energy_unit_price_eur_kwh;
+
+  if (total != null && kwh != null && p != null) {
+    const energy = kwh * p;
+    const remainder = total - energy;
+
+    // si le "reste" dépasse déjà fortement le sub, c’est suspect
+    // (on met un seuil conservateur)
+    if (remainder > sub * 4) {
+      return { ...bill, subscription_annual_ht_eur: sub * 12 };
+    }
+
+    // sinon on ne touche pas
+    return bill;
+  }
+
+  // Sans total/kwh/prix, on reste conservateur: on annualise quand même,
+  // car période annuelle + sub très bas est déjà très fort comme signal.
+  return { ...bill, subscription_annual_ht_eur: sub * 12 };
+}
+
 
 function validateExtraction(bill: ExtractedBill): ExtractedBill {
   const missing: string[] = [];
@@ -299,10 +360,29 @@ export async function analyzeBill(
   mimeType: string,
   engagement: string
 ): Promise<AnalysisResult> {
-  const bill = await extractBillData(fileBuffer, mimeType);
+  let bill = await extractBillData(fileBuffer, mimeType);
 
-  // Si facture annuelle requise, offers restera vide, mais on renvoie un résultat "OK"
+  // ✅ Normalisation abonnement: si mensuel détecté, on le repasse en annuel
+  bill = maybeAnnualizeSubscription(bill);
+
+  // IMPORTANT: on recalcule missing/confidence/needs après mutation
+  bill = validateExtraction(bill);
+
   const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
+
+  const requiredOk =
+    bill?.energy_unit_price_eur_kwh != null &&
+    bill?.consumption_kwh_annual != null &&
+    bill?.subscription_annual_ht_eur != null &&
+    bill?.total_annual_ttc_eur != null;
+
+  if (bill?.needs_full_annual_invoice) {
+    bill.confidence = "insufficient";
+  } else if (requiredOk) {
+    bill.confidence = "ok";
+  } else {
+    bill.confidence = "partial";
+  }
 
   return {
     bill,
@@ -310,3 +390,4 @@ export async function analyzeBill(
     engagement,
   };
 }
+

@@ -260,6 +260,11 @@ export function ResultCards({ data }: ResultCardsProps) {
             mono
           />
         </div>
+
+        <p className="mt-3 text-[11px] text-slate-500 italic leading-relaxed">
+  Les taxes et la TVA sont réglementées et identiques pour toutes les offres.
+  Elles sont incluses dans le total TTC.
+</p>
         {/* ✅ “SOUS LE </div> DU GRID” = JUSTE ICI */}
 
         {bill.needs_full_annual_invoice && (
