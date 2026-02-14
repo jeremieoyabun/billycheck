@@ -140,6 +140,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const normalizedBill = normalizeBillNumbers(result?.bill);
     const normalizedResult = { ...result, bill: normalizedBill };
 
+
     // If nothing usable extracted, return explicit error (and store it)
     if (!hasUsefulData(normalizedBill)) {
       const scan = await prisma.scan.update({
@@ -163,26 +164,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
     }
 
-    // ✅ If annual invoice required: store DONE anyway (UI can show CTA), offers will be empty.
-    if (normalizedResult?.bill?.needs_full_annual_invoice) {
-      const scan = await prisma.scan.update({
-        where: { id },
-        data: {
-          status: "DONE",
-          resultJson: JSON.parse(JSON.stringify(normalizedResult)),
-        },
-      });
 
-      if (uid) {
-        try {
-          await consumeScanCredit(uid);
-        } catch (err) {
-          console.error(`[process] Failed to consume credit for ${uid}:`, err);
-        }
-      }
+// ✅ Si l'IA dit qu'il faut une facture annuelle complète,
+// on sauvegarde le résultat (pour afficher le CTA) MAIS on ne consomme PAS de crédit.
+const needsAnnual = normalizedResult?.bill?.needs_full_annual_invoice === true;
 
-      return NextResponse.json({ ok: true, scan, code: "NEEDS_ANNUAL_INVOICE" });
-    }
+if (needsAnnual) {
+  const scan = await prisma.scan.update({
+    where: { id },
+    data: {
+      status: "DONE",
+      resultJson: JSON.parse(JSON.stringify(normalizedResult)),
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    scan,
+    code: "NEEDS_ANNUAL_INVOICE",
+  });
+}
+
+
+
+
 
     // 6) Save result & mark DONE
     const scan = await prisma.scan.update({

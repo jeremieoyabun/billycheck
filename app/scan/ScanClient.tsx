@@ -25,6 +25,8 @@ export default function ScanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get("payment") === "success";
+  const rescanId = searchParams.get("rescan"); // ex: /scan?rescan=cmlm22...
+
 
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -55,18 +57,112 @@ export default function ScanPage() {
   }, [paymentSuccess]);
 
   /* ── 1. File selected ── */
-  const handleFileAccepted = useCallback(
-    (f: File) => {
-      // Check quota before proceeding
-      if (quota && !quota.canScan) {
+const handleFileAccepted = useCallback(
+  (f: File) => {
+    // on stocke le fichier (utile si on continue en mode normal)
+    setFile(f);
+
+    // ✅ MODE RESCAN: on relance directement le processing sur le scan existant
+    if (rescanId) {
+      setStep("processing");
+      setScanId(rescanId);
+
+      (async () => {
+        try {
+          const formData = new FormData();
+          formData.append("file", f);
+
+          const processRes = await fetch(`/api/scans/${rescanId}/process`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await processRes.json();
+
+          // Paywall
+          if (result?.code === "PAYWALL_REQUIRED") {
+            router.push("/paywall");
+            return;
+          }
+
+          // Not compatible
+          if (result?.code === "BILL_NOT_COMPATIBLE") {
+            setStep("bill_not_compatible");
+            return;
+          }
+
+          // Done → go result
+          if (result?.scan?.status === "DONE") {
+            router.push(`/result/${rescanId}`);
+            return;
+          }
+
+          // Fail
+          setStep("failed");
+        } catch (err) {
+          console.error("Rescan error:", err);
+          setStep("failed");
+        }
+      })();
+
+      return;
+    }
+
+    // ✅ FLOW NORMAL (1er scan)
+    if (quota && !quota.canScan) {
+      router.push("/paywall");
+      return;
+    }
+
+    setStep("engagement");
+  },
+  [quota, router, rescanId]
+);
+
+
+  const processExistingScan = useCallback(
+  async (existingId: string) => {
+    if (!file) return;
+
+    setStep("processing");
+    setScanId(existingId);
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      
+      // pas besoin d'engagement ici, on garde celui déjà en DB
+
+      const processRes = await fetch(`/api/scans/${existingId}/process`, {
+        method: "POST",
+        body: form,
+      });
+
+      const result = await processRes.json();
+
+      if (result?.code === "PAYWALL_REQUIRED") {
         router.push("/paywall");
         return;
       }
-      setFile(f);
-      setStep("engagement");
-    },
-    [quota, router]
-  );
+
+      if (result?.code === "BILL_NOT_COMPATIBLE") {
+        setStep("bill_not_compatible");
+        return;
+      }
+
+      if (result?.scan?.status === "DONE") {
+        router.push(`/result/${existingId}`);
+        return;
+      }
+
+      setStep("failed");
+    } catch (err) {
+      console.error("Rescan error:", err);
+      setStep("failed");
+    }
+  },
+  [file, router]
+);
 
   /* ── 2. Engagement → create scan + process ── */
   const startProcessing = useCallback(

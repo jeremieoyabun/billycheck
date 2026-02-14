@@ -5,8 +5,10 @@ import type { ExtractedBill } from "./ResultCards";
 import { useRouter } from "next/navigation";
 
 
+
 interface ExtractedDataCardProps {
   bill: ExtractedBill;
+  scanId: string;
 }
 
 /* ──────────────────────────────────────────────
@@ -57,8 +59,10 @@ function niceMissingLabel(key: string) {
 /* ──────────────────────────────────────────────
    Component
    ────────────────────────────────────────────── */
-export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
-const router = useRouter();
+export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
+  const router = useRouter();
+
+
 
   // Nouveau modèle + fallback legacy (sans @ts-expect-error)
   const b = bill as any;
@@ -202,7 +206,7 @@ const router = useRouter();
             <button
   type="button"
   className="mt-4 inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
-  onClick={() => router.push("/scan")}
+  onClick={() => router.push(`/scan?rescan=${encodeURIComponent(scanId)}`)}
 >
   Uploader la facture annuelle complète
 </button>

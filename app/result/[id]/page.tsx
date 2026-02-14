@@ -160,7 +160,7 @@ export default function ResultPage() {
           {/* Extracted data card */}
           {scan.resultJson.bill && (
             <div className="mt-5">
-              <ExtractedDataCard bill={scan.resultJson.bill} />
+              <ExtractedDataCard bill={scan.resultJson.bill} scanId={id} />
             </div>
           )}
         </>
