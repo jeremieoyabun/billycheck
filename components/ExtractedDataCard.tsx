@@ -106,7 +106,7 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
   const backendStatus = b.confidence as ExtractionStatus | undefined;
 
   const status: ExtractionStatus =
-    backendStatus ?? (missingRequired.length > 0 ? "insufficient" : secondaryMissing > 0 ? "partial" : "ok");
+    backendStatus ?? (missingRequired.length > 0 ? "insufficient" : "ok");
 
   // Si le backend indique explicitement qu'il faut la facture annuelle, on le respecte
   const needsFullAnnualInvoice: boolean =
