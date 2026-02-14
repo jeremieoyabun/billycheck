@@ -332,13 +332,17 @@ function MiniCard({
 
   return (
     <div className={`relative rounded-2xl ${toneClass} p-4 pt-6`}>
-      {badge && (
-        <span
-          className={`absolute -top-3 left-1/2 -translate-x-1/2 z-10 text-[11px] px-3 py-1 rounded-full font-bold border shadow-sm ${badgeToneClass}`}
-        >
-          {badge}
-        </span>
-      )}
+    {badge && (
+  <span
+    className={`absolute -top-3 left-1/2 -translate-x-1/2 z-10
+                text-[11px] px-3 py-1 rounded-full font-bold
+                border shadow-sm whitespace-nowrap
+                ${badgeToneClass}`}
+  >
+    {badge}
+  </span>
+)}
+
 
       <div className="text-xs font-semibold text-slate-950">{title}</div>
 
