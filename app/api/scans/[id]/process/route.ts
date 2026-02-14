@@ -138,7 +138,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     // Normalize numbers FR
     const normalizedBill = normalizeBillNumbers(result?.bill);
-    const normalizedResult = { ...result, bill: normalizedBill };
+
+    // Heuristique: si subscription_annual_ht_eur ressemble à un montant mensuel (5–20€),
+// on le convertit en annuel (x12).
+if (
+  normalizedBill &&
+  typeof normalizedBill.subscription_annual_ht_eur === "number" &&
+  normalizedBill.subscription_annual_ht_eur >= 5 &&
+  normalizedBill.subscription_annual_ht_eur <= 20
+) {
+  normalizedBill.subscription_annual_ht_eur = Number(
+    (normalizedBill.subscription_annual_ht_eur * 12).toFixed(2)
+  );
+
+  // Optionnel (debug / UI): indique qu'on a corrigé
+  normalizedBill.subscription_inferred_monthly = true;
+}
+
+   const normalizedResult = { ...result, bill: normalizedBill };
 
 
     // If nothing usable extracted, return explicit error (and store it)

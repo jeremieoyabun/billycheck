@@ -120,11 +120,24 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
     ? "ok"
     : backendStatus ?? (secondaryMissing > 0 ? "partial" : "ok");
 
-  // Badge carte 1
-  const energyBadge = isBiHoraire(meterType) ? "HP/HC" : "Moyen";
-  const energySubtitle = isBiHoraire(meterType)
-    ? "Moyenne pondérée selon ta consommation réelle"
-    : "Prix moyen réellement payé";
+// Détection tarif HP/HC réelle (basée sur les prix, pas sur le compteur)
+const hp = b.hp_unit_price_eur_kwh;
+const hc = b.hc_unit_price_eur_kwh;
+
+const isHpHcTariff =
+  typeof hp === "number" &&
+  typeof hc === "number" &&
+  Number.isFinite(hp) &&
+  Number.isFinite(hc) &&
+  Math.abs(hp - hc) > 0.00001;
+
+// Badge carte 1
+const energyBadge = isHpHcTariff ? "HP/HC" : "Moyen";
+
+const energySubtitle = isHpHcTariff
+  ? "Moyenne pondérée selon ta consommation réelle"
+  : "Prix moyen réellement payé";
+
 
   // Carte 2 abonnement
   const subscriptionValue =
@@ -274,15 +287,35 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
         </p>
       </Section>
 
-      {/* ── Section 2 : Infos facture ── */}
-      <Section title="Données lues sur ta facture" subtitle="Informations extraites automatiquement">
-        <div className="grid grid-cols-1 gap-2">
-          <InfoLine icon="📅" label="Période analysée" value={bill.billing_period ?? "–"} />
-          <InfoLine icon="⚡" label="Type de compteur" value={meterType ?? "–"} />
-          <InfoLine icon="📍" label="Code postal" value={bill.postal_code ?? "–"} />
-          <InfoLine icon="🏢" label="Fournisseur" value={bill.provider ?? "–"} />
-        </div>
-      </Section>
+      {/* ── Section 2 : Infos facture (compact) ── */}
+{(() => {
+  const items = [
+    bill.billing_period ? { icon: "📅", label: "Période", value: bill.billing_period } : null,
+    meterType ? { icon: "⚡", label: "Compteur", value: meterType } : null,
+    bill.postal_code ? { icon: "📍", label: "CP", value: String(bill.postal_code) } : null,
+    bill.provider ? { icon: "🏢", label: "Fournisseur", value: bill.provider } : null,
+  ].filter(Boolean) as { icon: string; label: string; value: string }[];
+
+  if (items.length === 0) return null;
+
+  return (
+    <Section title="Infos facture" subtitle="Extraites automatiquement (résumé)">
+      <div className="flex flex-wrap gap-2">
+        {items.map((it) => (
+          <span
+            key={it.label}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[12px] text-slate-700 shadow-sm"
+          >
+            <span className="text-[14px]">{it.icon}</span>
+            <span className="font-semibold text-slate-600">{it.label} :</span>
+            <span className="font-bold text-slate-900">{it.value}</span>
+          </span>
+        ))}
+      </div>
+    </Section>
+  );
+})()}
+
     </div>
   );
 }
