@@ -1,10 +1,8 @@
 "use client";
 
 import React from "react";
-import type { ExtractedBill } from "./ResultCards";
 import { useRouter } from "next/navigation";
-
-
+import type { ExtractedBill } from "./ResultCards";
 
 interface ExtractedDataCardProps {
   bill: ExtractedBill;
@@ -62,8 +60,6 @@ function niceMissingLabel(key: string) {
 export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
   const router = useRouter();
 
-
-
   // Nouveau modèle + fallback legacy (sans @ts-expect-error)
   const b = bill as any;
 
@@ -82,6 +78,13 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
     b.total_annual_ttc_eur ?? bill.total_amount_eur ?? null;
 
   const meterType = bill.meter_type ?? null;
+
+  // ✅ Core (4 champs) complet ?
+  const coreComplete =
+    energyUnitPrice != null &&
+    consumptionAnnual != null &&
+    subscriptionAnnualHT != null &&
+    totalAnnualTTC != null;
 
   // Données clés strictes (les 4)
   const required = [
@@ -102,15 +105,20 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
   const secondaryMissing =
     (bill.provider ? 0 : 1) + (bill.postal_code ? 0 : 1) + (meterType ? 0 : 1);
 
-  // Si le backend fournit confidence, on la respecte
+  // ✅ Si le backend indique explicitement facture annuelle requise, on respecte
+  const needsFullAnnualInvoice: boolean =
+    typeof b.needs_full_annual_invoice === "boolean"
+      ? b.needs_full_annual_invoice
+      : missingRequired.length > 0;
+
+  // ✅ Si le backend fournit confidence, on la respecte… sauf si core complet → OK
   const backendStatus = b.confidence as ExtractionStatus | undefined;
 
-  const status: ExtractionStatus =
-    backendStatus ?? (missingRequired.length > 0 ? "insufficient" : "ok");
-
-  // Si le backend indique explicitement qu'il faut la facture annuelle, on le respecte
-  const needsFullAnnualInvoice: boolean =
-    typeof b.needs_full_annual_invoice === "boolean" ? b.needs_full_annual_invoice : status === "insufficient";
+  const status: ExtractionStatus = needsFullAnnualInvoice
+    ? "insufficient"
+    : coreComplete
+    ? "ok"
+    : backendStatus ?? (secondaryMissing > 0 ? "partial" : "ok");
 
   // Badge carte 1
   const energyBadge = isBiHoraire(meterType) ? "HP/HC" : "Moyen";
@@ -202,14 +210,13 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
               Dès que tu l’uploades, Billy peut recalculer proprement.
             </div>
 
-            {/* Si tu as déjà un bouton ailleurs, supprime celui-ci */}
             <button
-  type="button"
-  className="mt-4 inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
-  onClick={() => router.push(`/scan?rescan=${encodeURIComponent(scanId)}`)}
->
-  Uploader la facture annuelle complète
-</button>
+              type="button"
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
+              onClick={() => router.push(`/scan?rescan=${encodeURIComponent(scanId)}`)}
+            >
+              Uploader la facture annuelle complète
+            </button>
           </div>
         </div>
       )}
@@ -295,9 +302,7 @@ function Section({
   return (
     <div className="px-6 py-5 border-t border-slate-200">
       <div className="mb-3">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-          {title}
-        </div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</div>
         {subtitle && <div className="text-[12px] text-slate-500 mt-0.5">{subtitle}</div>}
       </div>
       {children}
@@ -338,22 +343,16 @@ function MiniCard({
 
   return (
     <div className={`relative rounded-2xl ${toneClass} p-4 pt-6`}>
-    {badge && (
-  <span
-    className={`absolute -top-3 left-1/2 -translate-x-1/2 z-10
-                text-[11px] px-3 py-1 rounded-full font-bold
-                border shadow-sm whitespace-nowrap
-                ${badgeToneClass}`}
-  >
-    {badge}
-  </span>
-)}
-
+      {badge && (
+        <span
+          className={`absolute -top-3 left-1/2 -translate-x-1/2 z-10 text-[11px] px-3 py-1 rounded-full font-bold border shadow-sm whitespace-nowrap ${badgeToneClass}`}
+        >
+          {badge}
+        </span>
+      )}
 
       <div className="text-xs font-semibold text-slate-950">{title}</div>
-
       <div className="mt-2 text-[18px] font-extrabold text-slate-900">{value}</div>
-
       {subtitle && <div className="mt-1 text-[12px] text-slate-500 leading-snug">{subtitle}</div>}
     </div>
   );
