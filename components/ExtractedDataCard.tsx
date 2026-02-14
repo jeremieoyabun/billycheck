@@ -2,6 +2,8 @@
 
 import React from "react";
 import type { ExtractedBill } from "./ResultCards";
+import { useRouter } from "next/navigation";
+
 
 interface ExtractedDataCardProps {
   bill: ExtractedBill;
@@ -56,6 +58,8 @@ function niceMissingLabel(key: string) {
    Component
    ────────────────────────────────────────────── */
 export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
+const router = useRouter();
+
   // Nouveau modèle + fallback legacy (sans @ts-expect-error)
   const b = bill as any;
 
@@ -196,14 +200,12 @@ export function ExtractedDataCard({ bill }: ExtractedDataCardProps) {
 
             {/* Si tu as déjà un bouton ailleurs, supprime celui-ci */}
             <button
-              type="button"
-              className="mt-4 inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
-              onClick={() => {
-                // TODO: brancher ton flow d'upload (router.push("/scan") ou ouvrir un modal)
-              }}
-            >
-              Uploader la facture annuelle complète
-            </button>
+  type="button"
+  className="mt-4 inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-rose-700 transition-colors"
+  onClick={() => router.push("/scan")}
+>
+  Uploader la facture annuelle complète
+</button>
           </div>
         </div>
       )}
