@@ -1,21 +1,8 @@
-export interface ExtractedBill {
-  provider: string | null;
-  plan_name: string | null;
-  total_amount_eur: number | null;
-  consumption_kwh: number | null;
-  unit_price_eur_kwh: number | null;
-  fixed_fees_eur: number | null;
-  fixed_fees_monthly_eur: number | null;
-  billing_period: string | null;
-  postal_code: string | null;
-  meter_type: string | null;
-}
-
 import OpenAI from "openai";
 import offers from "../data/offers.json";
 
 /* ──────────────────────────────────────────────
-   OpenAI lazy init (avoid build-time crash)
+   OpenAI lazy init
    ────────────────────────────────────────────── */
 function getOpenAI() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -26,16 +13,31 @@ function getOpenAI() {
 /* ──────────────────────────────────────────────
    Types
    ────────────────────────────────────────────── */
+export type ExtractionConfidence = "ok" | "partial" | "insufficient";
+
 export interface ExtractedBill {
   provider: string | null;
   plan_name: string | null;
-  total_amount_eur: number | null;
-  consumption_kwh: number | null;
-  unit_price_eur_kwh: number | null;
-  fixed_fees_eur: number | null;
-  billing_period: string | null;
   postal_code: string | null;
   meter_type: string | null;
+  billing_period: string | null;
+
+  // 4 valeurs indispensables (annuelles)
+  energy_unit_price_eur_kwh: number | null;      // TTC (moyenne pondérée si HP/HC)
+  consumption_kwh_annual: number | null;         // kWh/an
+  subscription_annual_ht_eur: number | null;     // €/an HT
+  total_annual_ttc_eur: number | null;           // €/an TTC
+
+  // Détails HP/HC (si trouvés)
+  hp_unit_price_eur_kwh: number | null;
+  hc_unit_price_eur_kwh: number | null;
+  hp_consumption_kwh: number | null;
+  hc_consumption_kwh: number | null;
+
+  // Qualité extraction
+  confidence: ExtractionConfidence;
+  missing_fields: string[];
+  needs_full_annual_invoice: boolean;
 }
 
 export interface OfferResult {
@@ -56,125 +58,159 @@ export interface AnalysisResult {
 }
 
 /* ──────────────────────────────────────────────
-   GPT-4o Vision or Text — Extract bill data
+   Extraction prompt (STRICT)
    ────────────────────────────────────────────── */
-const EXTRACTION_PROMPT = `Tu es Billy, un expert en factures d'énergie belges.
-Analyse cette facture d'électricité et extrais les informations suivantes au format JSON strict.
+const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité belges.
+Analyse la facture et réponds UNIQUEMENT avec un objet JSON valide (sans backticks, sans texte).
 
-Réponds UNIQUEMENT avec un objet JSON valide, sans backticks, sans explication :
+Objectif: extraire 4 valeurs indispensables pour comparer des offres:
+1) prix du kWh réellement payé (€/kWh, TTC)
+2) consommation totale annuelle réelle (kWh/an)
+3) abonnement annuel HT (€/an HT)
+4) total annuel TTC réellement payé (€/an TTC)
+
+Règles STRICTES:
+- N'invente jamais.
+- Ne fais PAS d'extrapolation automatique (ne multiplie pas par 12 une conso mensuelle).
+- Si une valeur n'est pas clairement visible, mets null.
+- Si le contrat est bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
+- Si tu ne peux pas obtenir les 4 valeurs, mets null sur ce qui manque.
+
+Schéma EXACT:
 
 {
-  "provider": "nom du fournisseur (ex: ENGIE, Luminus, TotalEnergies...)",
-  "plan_name": "nom de l'offre/tarif si visible, sinon null",
-  "total_amount_eur": nombre ou null (montant total TTC en euros),
-  "consumption_kwh": nombre ou null (consommation en kWh, annuelle de préférence, sinon celle indiquée),
-  "unit_price_eur_kwh": nombre ou null (prix unitaire par kWh TTC),
-  "fixed_fees_eur": nombre ou null (total redevances/abonnements fixes HT pour la période de facturation),
-  "billing_period": "période de facturation (ex: 'Jan 2026' ou '01/2025 - 12/2025')",
-  "postal_code": "code postal si visible, sinon null",
-  "meter_type": "simple ou bi-horaire ou exclusif-nuit, sinon null",
-  "is_electricity": true ou false (est-ce bien une facture d'électricité ?),
-  "confidence": "high" ou "medium" ou "low" (confiance dans l'extraction)
-  
+  "provider": string|null,
+  "plan_name": string|null,
+  "postal_code": string|null,
+  "meter_type": string|null,
+  "billing_period": string|null,
+
+  "energy_unit_price_eur_kwh": number|null,
+  "consumption_kwh_annual": number|null,
+  "subscription_annual_ht_eur": number|null,
+  "total_annual_ttc_eur": number|null,
+
+  "hp_unit_price_eur_kwh": number|null,
+  "hc_unit_price_eur_kwh": number|null,
+  "hp_consumption_kwh": number|null,
+  "hc_consumption_kwh": number|null
 }
 
-Règles :
-- fixed_fees_eur : additionne les lignes type "redevance fixe", "abonnement", "tarif prosumer", "forfait" si elles sont des frais fixes (pas l'énergie au kWh).
-- Si une valeur n'est pas visible ou lisible, mets null
-- Pour consumption_kwh, si tu vois une consommation mensuelle, multiplie par 12 pour estimer l'annuel
-- Pour unit_price_eur_kwh, essaie d'extraire le prix tout compris (pas juste l'énergie)
-- Les montants sont en euros (€)
-- Si ce n'est pas une facture d'électricité, mets is_electricity à false`;
+Si ce n'est pas une facture d'électricité, retourne tous les champs à null.`;
 
-type ExtractedBillWithMeta = ExtractedBill & {
-  is_electricity: boolean;
-  confidence: "high" | "medium" | "low" | string;
-};
-
+/* ──────────────────────────────────────────────
+   Helpers
+   ────────────────────────────────────────────── */
 function isImageMime(mimeType: string) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
 }
-
 function isPdfMime(mimeType: string) {
   return mimeType === "application/pdf";
 }
 
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
-  // pdf-parse can be ESM/CJS depending on environment, so we resolve it dynamically
   const mod: any = await import("pdf-parse");
   const parser = mod?.default ?? mod;
   const parsed = await parser(fileBuffer);
-  const text = (parsed?.text ?? "").toString();
-  return text;
+  return (parsed?.text ?? "").toString();
 }
 
+function numOrNull(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function round4(n: number) {
+  return Math.round(n * 10000) / 10000;
+}
+
+function computeWeightedPrice(
+  hpPrice: number | null,
+  hcPrice: number | null,
+  hpKwh: number | null,
+  hcKwh: number | null
+): number | null {
+  if (hpPrice == null || hcPrice == null || hpKwh == null || hcKwh == null) return null;
+  const total = hpKwh + hcKwh;
+  if (!Number.isFinite(total) || total <= 0) return null;
+  const weighted = (hpPrice * hpKwh + hcPrice * hcKwh) / total;
+  return Number.isFinite(weighted) ? round4(weighted) : null;
+}
+
+function validateExtraction(bill: ExtractedBill): ExtractedBill {
+  const missing: string[] = [];
+  if (bill.energy_unit_price_eur_kwh == null) missing.push("energy_unit_price_eur_kwh");
+  if (bill.consumption_kwh_annual == null) missing.push("consumption_kwh_annual");
+  if (bill.subscription_annual_ht_eur == null) missing.push("subscription_annual_ht_eur");
+  if (bill.total_annual_ttc_eur == null) missing.push("total_annual_ttc_eur");
+
+  let confidence: ExtractionConfidence = "ok";
+  if (missing.length > 0) confidence = "insufficient";
+  else {
+    const secondaryMissing =
+      (bill.provider ? 0 : 1) + (bill.postal_code ? 0 : 1) + (bill.meter_type ? 0 : 1);
+    if (secondaryMissing > 0) confidence = "partial";
+  }
+
+  return {
+    ...bill,
+    missing_fields: missing,
+    confidence,
+    needs_full_annual_invoice: confidence === "insufficient",
+  };
+}
+
+/* ──────────────────────────────────────────────
+   Extract bill data
+   ────────────────────────────────────────────── */
 export async function extractBillData(
   fileBuffer: Buffer,
   mimeType: string
-): Promise<ExtractedBillWithMeta> {
+): Promise<ExtractedBill> {
   const openai = getOpenAI();
   if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
 
   const base64 = fileBuffer.toString("base64");
 
-  // 1) Images: use vision
   if (isImageMime(mimeType)) {
     const content: OpenAI.Chat.ChatCompletionContentPart[] = [
       { type: "text", text: EXTRACTION_PROMPT },
-      {
-        type: "image_url",
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`,
-          detail: "high",
-        },
-      },
+      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" } },
     ];
 
     const res = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content }],
-      max_tokens: 1000,
+      max_tokens: 1400,
       temperature: 0.1,
     });
 
     return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
   }
 
-  // 2) PDFs: extract text then ask GPT as text
   if (isPdfMime(mimeType)) {
     const pdfText = (await extractPdfText(fileBuffer)).trim();
-
-    // If PDF text is empty, it's probably a scanned PDF (image-only).
-    // For now we fail explicitly instead of sending PDF as image (which OpenAI rejects).
-    if (pdfText.length < 50) {
-      throw new Error("PDF_NO_TEXT");
-    }
+    if (pdfText.length < 50) throw new Error("PDF_NO_TEXT");
 
     const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-      {
-        type: "text",
-        text: `${EXTRACTION_PROMPT}\n\n--- CONTENU DE LA FACTURE ---\n\n${pdfText.slice(
-          0,
-          12000
-        )}`,
-      },
+      { type: "text", text: `${EXTRACTION_PROMPT}\n\n--- CONTENU DE LA FACTURE ---\n\n${pdfText.slice(0, 12000)}` },
     ];
 
     const res = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content }],
-      max_tokens: 1000,
+      max_tokens: 1400,
       temperature: 0.1,
     });
 
     return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
   }
 
-  // 3) Other file types: reject
   throw new Error("UNSUPPORTED_MIME_TYPE");
 }
 
-function parseGPTResponse(raw: string): ExtractedBillWithMeta {
+function parseGPTResponse(raw: string): ExtractedBill {
   const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
   let data: any;
@@ -184,50 +220,48 @@ function parseGPTResponse(raw: string): ExtractedBillWithMeta {
     throw new Error("GPT_INVALID_JSON");
   }
 
-  return {
+  const hpPrice = numOrNull(data.hp_unit_price_eur_kwh);
+  const hcPrice = numOrNull(data.hc_unit_price_eur_kwh);
+  const hpKwh = numOrNull(data.hp_consumption_kwh);
+  const hcKwh = numOrNull(data.hc_consumption_kwh);
+
+  const weighted = computeWeightedPrice(hpPrice, hcPrice, hpKwh, hcKwh);
+
+  const bill: ExtractedBill = {
     provider: data.provider ?? null,
     plan_name: data.plan_name ?? null,
-    total_amount_eur:
-      data.total_amount_eur != null ? Number(data.total_amount_eur) : null,
-    consumption_kwh:
-      data.consumption_kwh != null ? Number(data.consumption_kwh) : null,
-    unit_price_eur_kwh:
-      data.unit_price_eur_kwh != null ? Number(data.unit_price_eur_kwh) : null,
-    fixed_fees_eur:
-      data.fixed_fees_eur != null ? Number(data.fixed_fees_eur) : null,
-    fixed_fees_monthly_eur: null,
-    billing_period: data.billing_period ?? null,
     postal_code: data.postal_code ?? null,
     meter_type: data.meter_type ?? null,
-    is_electricity: data.is_electricity !== false,
-    confidence: data.confidence ?? "medium",
+    billing_period: data.billing_period ?? null,
+
+    energy_unit_price_eur_kwh: weighted ?? numOrNull(data.energy_unit_price_eur_kwh),
+    consumption_kwh_annual: numOrNull(data.consumption_kwh_annual),
+    subscription_annual_ht_eur: numOrNull(data.subscription_annual_ht_eur),
+    total_annual_ttc_eur: numOrNull(data.total_annual_ttc_eur),
+
+    hp_unit_price_eur_kwh: hpPrice,
+    hc_unit_price_eur_kwh: hcPrice,
+    hp_consumption_kwh: hpKwh,
+    hc_consumption_kwh: hcKwh,
+
+    confidence: "insufficient",
+    missing_fields: [],
+    needs_full_annual_invoice: true,
   };
+
+  return validateExtraction(bill);
 }
 
 /* ──────────────────────────────────────────────
    Compare with market offers & calculate savings
    ────────────────────────────────────────────── */
-export function compareOffers(
-  bill: ExtractedBill,
-  engagement: string
-): OfferResult[] {
-  const annualKwh = bill.consumption_kwh;
+export function compareOffers(bill: ExtractedBill, engagement: string): OfferResult[] {
+  const annualKwh = bill.consumption_kwh_annual;
   if (!annualKwh || annualKwh <= 0) return [];
 
-  let currentAnnualCost: number;
-
-  if (bill.total_amount_eur && bill.billing_period) {
-    const months = guessMonths(bill.billing_period);
-    currentAnnualCost = (bill.total_amount_eur / months) * 12;
-  } else if (bill.unit_price_eur_kwh) {
-    const monthlyFixed = bill.fixed_fees_monthly_eur ?? bill.fixed_fees_eur ?? 5;
-    const fixedAnnual = monthlyFixed * 12;
-    currentAnnualCost = bill.unit_price_eur_kwh * annualKwh + fixedAnnual;
-  } else if (bill.total_amount_eur) {
-    currentAnnualCost = bill.total_amount_eur * 12;
-  } else {
-    return [];
-  }
+  // On compare sur le total annuel TTC si dispo (meilleur signal)
+  const currentAnnualCost = bill.total_annual_ttc_eur;
+  if (currentAnnualCost == null || currentAnnualCost <= 0) return [];
 
   const currentProvider = (bill.provider ?? "").toLowerCase();
 
@@ -237,9 +271,7 @@ export function compareOffers(
       const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
       const savings = Math.round(currentAnnualCost - annualCost);
       const savingsPercent =
-        currentAnnualCost > 0
-          ? Math.round((savings / currentAnnualCost) * 100)
-          : 0;
+        currentAnnualCost > 0 ? Math.round((savings / currentAnnualCost) * 100) : 0;
 
       return {
         provider: offer.provider,
@@ -259,58 +291,6 @@ export function compareOffers(
   return results;
 }
 
-function guessMonths(period: string): number {
-  const lower = period.toLowerCase();
-  if (lower.includes("an") || lower.includes("year")) return 12;
-  if (lower.includes("trim") || lower.includes("quarter")) return 3;
-  if (lower.includes("bim") || lower.includes("2 mois")) return 2;
-
-  const rangeMatch = period.match(
-    /(\d{1,2})[/\-.](\d{4})\s*[-–]\s*(\d{1,2})[/\-.](\d{4})/
-  );
-
-  if (rangeMatch) {
-    const startMonth = parseInt(rangeMatch[1], 10);
-    const startYear = parseInt(rangeMatch[2], 10);
-    const endMonth = parseInt(rangeMatch[3], 10);
-    const endYear = parseInt(rangeMatch[4], 10);
-    return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-  }
-
-  return 1;
-}
-
-function parsePeriodToDays(period: string | null): number | null {
-  if (!period) return null;
-
-  // Formats supportés :
-  // "10-12-2025 au 31-12-2025"
-  // "10/12/2025 au 31/12/2025"
-  const m = period.match(/(\d{2})[\/-](\d{2})[\/-](\d{4}).*?(\d{2})[\/-](\d{2})[\/-](\d{4})/);
-  if (!m) return null;
-
-  const [, d1, mo1, y1, d2, mo2, y2] = m;
-  const start = new Date(Number(y1), Number(mo1) - 1, Number(d1));
-  const end = new Date(Number(y2), Number(mo2) - 1, Number(d2));
-
-  const ms = end.getTime() - start.getTime();
-  const days = Math.round(ms / (1000 * 60 * 60 * 24)) + 1; // inclusif
-  if (!Number.isFinite(days) || days <= 0 || days > 370) return null;
-
-  return days;
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
-}
-
-function computeMonthlyFromPeriodFixed(fixedFeesPeriod: number | null, days: number | null): number | null {
-  if (fixedFeesPeriod == null || days == null || days <= 0) return null;
-  const monthly = (fixedFeesPeriod / days) * 30.44;
-  return Number.isFinite(monthly) ? round2(monthly) : null;
-}
-
-
 /* ──────────────────────────────────────────────
    Full analysis pipeline
    ────────────────────────────────────────────── */
@@ -319,34 +299,10 @@ export async function analyzeBill(
   mimeType: string,
   engagement: string
 ): Promise<AnalysisResult> {
-  const extracted = await extractBillData(fileBuffer, mimeType);
+  const bill = await extractBillData(fileBuffer, mimeType);
 
-  if (!extracted.is_electricity) {
-    throw new Error("NOT_ELECTRICITY");
-  }
-
-  const days = parsePeriodToDays(extracted.billing_period);
-  const fixedMonthly = computeMonthlyFromPeriodFixed(extracted.fixed_fees_eur, days);
-
-  const bill: ExtractedBill = {
-    provider: extracted.provider,
-    plan_name: extracted.plan_name,
-    total_amount_eur: extracted.total_amount_eur,
-    consumption_kwh: extracted.consumption_kwh,
-    unit_price_eur_kwh: extracted.unit_price_eur_kwh,
-
-    fixed_fees_eur: extracted.fixed_fees_eur,           // fixe sur la période
-    fixed_fees_monthly_eur: fixedMonthly,               // ✅ €/mois calculé
-
-    billing_period: extracted.billing_period,
-    postal_code: extracted.postal_code,
-    meter_type: extracted.meter_type,
-  };
-
-
-
-
-  const offerResults = compareOffers(bill, engagement);
+  // Si facture annuelle requise, offers restera vide, mais on renvoie un résultat "OK"
+  const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
 
   return {
     bill,

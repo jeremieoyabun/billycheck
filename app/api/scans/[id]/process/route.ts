@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { analyzeBill } from "@/lib/analyze-bill";
 import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
-import { validateBillForComparison } from "@/lib/bill-validator";
 
 /* ──────────────────────────────────────────────
    Helpers
@@ -29,6 +28,19 @@ function normalizeBillNumbers(bill: any) {
 
   return {
     ...bill,
+
+    // Nouveau modèle
+    energy_unit_price_eur_kwh: toNumberFR(bill.energy_unit_price_eur_kwh),
+    consumption_kwh_annual: toNumberFR(bill.consumption_kwh_annual),
+    subscription_annual_ht_eur: toNumberFR(bill.subscription_annual_ht_eur),
+    total_annual_ttc_eur: toNumberFR(bill.total_annual_ttc_eur),
+
+    hp_unit_price_eur_kwh: toNumberFR(bill.hp_unit_price_eur_kwh),
+    hc_unit_price_eur_kwh: toNumberFR(bill.hc_unit_price_eur_kwh),
+    hp_consumption_kwh: toNumberFR(bill.hp_consumption_kwh),
+    hc_consumption_kwh: toNumberFR(bill.hc_consumption_kwh),
+
+    // Legacy (si jamais encore présent)
     total_amount_eur: toNumberFR(bill.total_amount_eur),
     consumption_kwh: toNumberFR(bill.consumption_kwh),
     unit_price_eur_kwh: toNumberFR(bill.unit_price_eur_kwh),
@@ -38,10 +50,15 @@ function normalizeBillNumbers(bill: any) {
 
 function hasUsefulData(bill: any) {
   return (
-    (bill?.total_amount_eur !== null && bill?.total_amount_eur !== undefined) ||
-    (bill?.consumption_kwh !== null && bill?.consumption_kwh !== undefined) ||
-    (bill?.unit_price_eur_kwh !== null && bill?.unit_price_eur_kwh !== undefined) ||
-    (bill?.fixed_fees_eur !== null && bill?.fixed_fees_eur !== undefined)
+    bill?.energy_unit_price_eur_kwh != null ||
+    bill?.consumption_kwh_annual != null ||
+    bill?.subscription_annual_ht_eur != null ||
+    bill?.total_annual_ttc_eur != null ||
+    // legacy fallback
+    bill?.total_amount_eur != null ||
+    bill?.consumption_kwh != null ||
+    bill?.unit_price_eur_kwh != null ||
+    bill?.fixed_fees_eur != null
   );
 }
 
@@ -116,7 +133,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = inferMimeType(file);
 
-    // 5) Run GPT analysis
+    // 5) Run analysis
     const result = await analyzeBill(buffer, mimeType, engagement);
 
     // Normalize numbers FR
@@ -146,49 +163,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
     }
 
-    // 6) Validate bill type (comparison eligibility)
-    const validation = validateBillForComparison({
-      fixed_fees_eur: normalizedResult.bill.fixed_fees_eur,
-      unit_price_eur_kwh: normalizedResult.bill.unit_price_eur_kwh,
-      consumption_kwh: normalizedResult.bill.consumption_kwh,
-      billing_period: normalizedResult.bill.billing_period,
-      raw_text: null,
-    });
-
-    if (!validation.isComparable) {
+    // ✅ If annual invoice required: store DONE anyway (UI can show CTA), offers will be empty.
+    if (normalizedResult?.bill?.needs_full_annual_invoice) {
       const scan = await prisma.scan.update({
         where: { id },
         data: {
-          status: "FAILED",
-          resultJson: JSON.parse(
-            JSON.stringify({
-              error: "BILL_NOT_COMPATIBLE",
-              reasons: validation.reasons,
-              bill: normalizedResult.bill,
-            })
-          ),
+          status: "DONE",
+          resultJson: JSON.parse(JSON.stringify(normalizedResult)),
         },
       });
 
-      return NextResponse.json({
-        ok: false,
-        scan,
-        code: "BILL_NOT_COMPATIBLE",
-        reasons: validation.reasons,
-      });
+      if (uid) {
+        try {
+          await consumeScanCredit(uid);
+        } catch (err) {
+          console.error(`[process] Failed to consume credit for ${uid}:`, err);
+        }
+      }
+
+      return NextResponse.json({ ok: true, scan, code: "NEEDS_ANNUAL_INVOICE" });
     }
 
-    // 7) Save result & mark DONE (store normalizedResult!)
+    // 6) Save result & mark DONE
     const scan = await prisma.scan.update({
       where: { id },
       data: {
         status: "DONE",
-        // Prisma Json type needs plain JSON
         resultJson: JSON.parse(JSON.stringify(normalizedResult)),
       },
     });
 
-    // 8) Consume credit AFTER successful scan
+    // 7) Consume credit AFTER successful scan
     if (uid) {
       try {
         await consumeScanCredit(uid);
