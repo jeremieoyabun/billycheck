@@ -71,10 +71,23 @@ Objectif: extraire 4 valeurs indispensables pour comparer des offres:
 
 Règles STRICTES:
 - N'invente jamais.
+- IMPORTANT "abonnement_annual_ht_eur" :
+  Ce champ correspond UNIQUEMENT à la redevance fixe du FOURNISSEUR (abonnement/fee fournisseur).
+  N’inclus JAMAIS : distribution, transport, terme fixe réseau, redevances de raccordement, taxes, prosumer, énergie renouvelable, contributions, ou tout autre poste non-fournisseur.
+  Si la facture ne donne pas clairement un TOTAL ANNUEL de cette redevance fournisseur, mets null.
+  Si tu vois une redevance fixe sur plusieurs périodes (ex: 2 lignes "redevance fixe"), additionne ces lignes seulement si elles sont clairement des redevances fournisseur.
+  Ne transforme jamais un montant mensuel en annuel.
+  - Indices pour reconnaître l’abonnement fournisseur :
+  ✅ mots-clés autorisés: "redevance fixe", "abonnement", "fee", "frais fixe fournisseur"
+  ❌ mots-clés interdits: "distribution", "transport", "terme fixe", "prosumer", "raccordement", "taxe", "accise", "TVA", "énergie renouvelable", "contribution"
+  Si un montant est associé à un mot-clé interdit, il ne peut PAS aller dans subscription_annual_ht_eur.
 - Ne fais PAS d'extrapolation automatique (ne multiplie pas par 12 une conso mensuelle).
 - Si une valeur n'est pas clairement visible, mets null.
 - Si le contrat est bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
 - Si tu ne peux pas obtenir les 4 valeurs, mets null sur ce qui manque.
+- "subscription_source_label" = recopie exacte du libellé de ligne utilisé pour l'abonnement (ex: "Redevance fixe").
+- Si subscription_annual_ht_eur est null, subscription_source_label doit être null.
+
 
 Schéma EXACT:
 
@@ -84,6 +97,7 @@ Schéma EXACT:
   "postal_code": string|null,
   "meter_type": string|null,
   "billing_period": string|null,
+  "subscription_source_label": string|null
 
   "energy_unit_price_eur_kwh": number|null,
   "consumption_kwh_annual": number|null,
