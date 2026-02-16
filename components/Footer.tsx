@@ -12,13 +12,13 @@ export function Footer() {
           <Link href="/qui-sommes-nous" className="hover:text-slate-900 transition">
             Qui sommes-nous
           </Link>
-          <Link href="/privacy" className="hover:text-slate-900 transition">
+          <Link href="/politique-de-confidentialite" className="hover:text-slate-900 transition">
             Politique de confidentialité
           </Link>
-          <Link href="/terms" className="hover:text-slate-900 transition">
+          <Link href="/cgu" className="hover:text-slate-900 transition">
             CGU
           </Link>
-          <Link href="/legal" className="hover:text-slate-900 transition">
+          <Link href="/mentions-legales" className="hover:text-slate-900 transition">
             Mentions légales
           </Link>
           <a href="mailto:contact@billycheck.com" className="hover:text-slate-900 transition">
