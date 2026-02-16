@@ -234,11 +234,18 @@ async function extractPdfTextFromBuffer(pdfBuffer: Buffer): Promise<string> {
     throw new Error("Missing PDF buffer (empty/undefined).");
   }
 
-  const mod: any = await import("pdf-parse");
-  const pdfParse: any = mod?.default ?? mod;
+const mod: any = await import("pdf-parse");
+const pdfParse: any = mod?.default ?? mod;
 
-  const parsed = await pdfParse(pdfBuffer);
-  return (parsed?.text ?? "").trim();
+console.log("██ PDF-PARSE BUFFER LENGTH =", (pdfBuffer as any)?.length, "isBuffer=", Buffer.isBuffer(pdfBuffer));
+
+if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+  throw new Error("MISSING_PDF_BUFFER_BEFORE_PDFPARSE");
+}
+
+const parsed = await pdfParse(pdfBuffer);
+return (parsed?.text ?? "").trim();
+
 }
 
 /* ──────────────────────────────────────────────
