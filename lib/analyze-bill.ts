@@ -1,16 +1,11 @@
 // lib/analyze-bill.ts
 //
-// ✅ PDF multi-pages + OCR via GPT Vision (sans canvas, compatible Vercel/Turbopack)
-// - Image: GPT Vision direct
-// - PDF avec texte: extraction texte via pdfjs -> GPT
-// - PDF scanné (texte vide): envoi du PDF en base64 à GPT Vision
+// ✅ VERSION STABLE (Vercel/Next.js/nodejs)
+// - Image (jpg/png/webp) -> GPT Vision
+// - PDF multi-pages -> GPT Vision (PDF base64)
+// - AUCUN pdfjs / AUCUN canvas -> pas de DOMMatrix
 //
-// Dépendances:
-//   npm i pdfjs-dist
-//
-// Important:
-// - runtime côté API = nodejs (pas edge)
-// - pas de @napi-rs/canvas
+// Dépendances: openai uniquement (déjà dans ton package.json)
 
 import OpenAI from "openai";
 import offers from "../data/offers.json";
@@ -36,25 +31,25 @@ export interface ExtractedBill {
   meter_type: string | null;
   billing_period: string | null;
 
-  energy_unit_price_eur_kwh: number | null; // TTC
+  // 4 valeurs indispensables (annuelles)
+  energy_unit_price_eur_kwh: number | null; // TTC (moyenne pondérée si HP/HC)
   consumption_kwh_annual: number | null; // kWh/an
   subscription_annual_ht_eur: number | null; // €/an HT (fournisseur uniquement)
   total_annual_ttc_eur: number | null; // €/an TTC
 
+  // Détails HP/HC (si trouvés)
   hp_unit_price_eur_kwh: number | null;
   hc_unit_price_eur_kwh: number | null;
   hp_consumption_kwh: number | null;
   hc_consumption_kwh: number | null;
 
+  // Qualité extraction
   confidence: ExtractionConfidence;
   missing_fields: string[];
   needs_full_annual_invoice: boolean;
 
   // Debug UX (optionnel)
-  extraction_mode?: "pdf_text" | "pdf_vision" | "image_vision";
-  pdf_pages?: number;
-  pdf_text_length?: number;
-  pdf_text_empty?: boolean;
+  extraction_mode?: "image_vision" | "pdf_vision";
 }
 
 export interface OfferResult {
@@ -138,9 +133,11 @@ function numOrNull(v: any): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
 function round4(n: number) {
   return Math.round(n * 10000) / 10000;
 }
+
 function computeWeightedPrice(
   hpPrice: number | null,
   hcPrice: number | null,
@@ -177,34 +174,8 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
   };
 }
 
-/* ──────────────────────────────────────────────
-   PDF: extract text via pdfjs (multi-pages)
-   ────────────────────────────────────────────── */
-async function extractPdfTextPdfjs(fileBuffer: Buffer): Promise<{ text: string; numPages: number }> {
-  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
-  const pdf = await loadingTask.promise;
-
-  const pages: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = (content.items || [])
-      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
-      .filter(Boolean)
-      .join(" ");
-    pages.push(`[PAGE ${i}]\n${pageText}`);
-  }
-
-  return { text: pages.join("\n\n").trim(), numPages: pdf.numPages };
-}
-
-/* ──────────────────────────────────────────────
-   GPT parsing
-   ────────────────────────────────────────────── */
 function parseGPTResponse(raw: string): ExtractedBill {
-  const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const cleaned = (raw || "").replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
   let data: any;
   try {
@@ -217,7 +188,6 @@ function parseGPTResponse(raw: string): ExtractedBill {
   const hcPrice = numOrNull(data.hc_unit_price_eur_kwh);
   const hpKwh = numOrNull(data.hp_consumption_kwh);
   const hcKwh = numOrNull(data.hc_consumption_kwh);
-
   const weighted = computeWeightedPrice(hpPrice, hcPrice, hpKwh, hcKwh);
 
   const bill: ExtractedBill = {
@@ -246,16 +216,16 @@ function parseGPTResponse(raw: string): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   Core: extract bill data (image + pdf)
+   Core: extract bill data (Vision only)
    ────────────────────────────────────────────── */
 export async function extractBillData(fileBuffer: Buffer, mimeType: string): Promise<ExtractedBill> {
   const openai = getOpenAI();
   if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
 
-  // 1) Image -> GPT Vision direct
-  if (isImageMime(mimeType)) {
-    const base64 = fileBuffer.toString("base64");
+  const base64 = fileBuffer.toString("base64");
 
+  // ✅ Image -> Vision
+  if (isImageMime(mimeType)) {
     const content = [
       { type: "text" as const, text: EXTRACTION_PROMPT },
       {
@@ -276,56 +246,14 @@ export async function extractBillData(fileBuffer: Buffer, mimeType: string): Pro
     return bill;
   }
 
-  // 2) PDF -> texte d'abord, sinon Vision direct sur le PDF
+  // ✅ PDF multi-pages -> Vision (PDF base64)
   if (isPdfMime(mimeType)) {
-    const { text, numPages } = await extractPdfTextPdfjs(fileBuffer);
-    const pdfText = (text || "").trim();
-    const textLen = pdfText.length;
-
-    // Cas 1: PDF avec texte natif
-    if (textLen >= 200) {
-      const MAX = 24000;
-      let payloadText = pdfText;
-      if (payloadText.length > MAX) {
-        const head = payloadText.slice(0, 14000);
-        const tail = payloadText.slice(-8000);
-        payloadText = `${head}\n\n[...] (TRONQUE)\n\n${tail}`;
-      }
-
-      const content = [
-        {
-          type: "text" as const,
-          text:
-            `${EXTRACTION_PROMPT}\n\n` +
-            `META: PDF ${numPages} pages.\n\n` +
-            `--- CONTENU FACTURE (TEXTE) ---\n\n` +
-            payloadText,
-        },
-      ];
-
-      const res = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{ role: "user", content }],
-        max_tokens: 1400,
-        temperature: 0.1,
-      });
-
-      const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
-      bill.extraction_mode = "pdf_text";
-      bill.pdf_pages = numPages;
-      bill.pdf_text_length = textLen;
-      return bill;
-    }
-
-    // Cas 2: PDF scanné / texte vide -> GPT Vision direct (PDF base64)
-    const base64 = fileBuffer.toString("base64");
-
     const content = [
       {
         type: "text" as const,
         text:
           `${EXTRACTION_PROMPT}\n\n` +
-          `Le document ci-dessous est un PDF. Lis toutes les pages et extrais les champs demandés.`,
+          `Lis toutes les pages de ce PDF et extrais les champs demandés.`,
       },
       {
         type: "image_url" as const,
@@ -342,9 +270,6 @@ export async function extractBillData(fileBuffer: Buffer, mimeType: string): Pro
 
     const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
     bill.extraction_mode = "pdf_vision";
-    bill.pdf_pages = numPages;
-    bill.pdf_text_length = textLen;
-    bill.pdf_text_empty = true;
     return bill;
   }
 
@@ -354,7 +279,7 @@ export async function extractBillData(fileBuffer: Buffer, mimeType: string): Pro
 /* ──────────────────────────────────────────────
    Compare offers
    ────────────────────────────────────────────── */
-export function compareOffers(bill: ExtractedBill, engagement: string): OfferResult[] {
+export function compareOffers(bill: ExtractedBill, _engagement: string): OfferResult[] {
   const annualKwh = bill.consumption_kwh_annual;
   if (!annualKwh || annualKwh <= 0) return [];
 
@@ -398,7 +323,12 @@ export async function analyzeBill(
   engagement: string
 ): Promise<AnalysisResult> {
   const bill = await extractBillData(fileBuffer, mimeType);
+
   const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
 
-  return { bill, offers: offerResults, engagement };
+  return {
+    bill,
+    offers: offerResults,
+    engagement,
+  };
 }
