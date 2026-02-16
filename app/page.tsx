@@ -11,9 +11,10 @@ export default function Home() {
         <div className="animate-billy-float inline-block mb-4">
           <Billy expression="normal" size={140} />
         </div>
-<p className="font-display font-semibold text-[clamp(16px,3vw,20px)] text-slate-500 mb-2">
-  Hé 👋 Moi c’est <span className="text-billy-blue">Billy</span>.
+<p className="font-display font-semibold text-[clamp(20px,3.5vw,28px)] tracking-[-0.01em] text-slate-600 mb-4">
+  Hé 👋 Moi c’est <span className="text-billy-blue font-bold">Billy</span>.
 </p>
+
 
         <p className="text-[clamp(17px,2.6vw,20px)] text-slate-700 max-w-md mx-auto leading-relaxed mb-6">
   <span className="font-semibold text-slate-900">
