@@ -155,6 +155,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ ok: false, error: "Scan not found" }, { status: 404 });
   }
 
+  
   // 2) Check quota BEFORE processing
   const uid = existing.userIdentifier ?? null;
   if (uid) {
@@ -285,6 +286,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       where: { id },
       data: { status: "DONE", resultJson: JSON.parse(JSON.stringify(normalizedResult)) },
     });
+    console.log("██ PROCESS ROUTE MARKER 2026-02-16-1939 ██");
+
+if (!scan) {
+  throw new Error("SCAN_NOT_FOUND");
+}
+
+if (!scan.fileKey) {
+  throw new Error("UPLOAD_MISSING_FILEKEY");
+}
+  
 
     return NextResponse.json({ ok: true, scan });
   } catch (err: unknown) {
