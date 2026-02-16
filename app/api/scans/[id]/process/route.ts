@@ -146,28 +146,81 @@ if (uid) {
   }
 }
 
-
-    // 5) Consume credit NOW (one attempt = one scan), even if invalid extraction
-if (uid) {
-  try {
-    await consumeScanCredit(uid);
-  } catch (err) {
-    console.error(`[process] Failed to consume credit for ${uid}:`, err);
-    // si la conso échoue, on peut décider de bloquer ou continuer
-    // pour limiter les abus, on bloque
-    return NextResponse.json(
-      { ok: false, error: "CREDIT_CONSUME_FAILED" },
-      { status: 500 }
-    );
-  }
-}
-
-
     // 5) Run analysis
     const result = await analyzeBill(buffer, mimeType, engagement);
 
     // Normalize numbers FR
     const normalizedBill = normalizeBillNumbers(result?.bill);
+
+    inferAnnualTTC(normalizedBill);
+        function clampVatRate(v: number) {
+  if (!Number.isFinite(v)) return 0;
+  if (v < 0) return 0;
+  if (v > 30) return 30; // garde-fou
+  return v;
+}
+
+function pickFirstNumber(...vals: any[]): number | null {
+  for (const v of vals) {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+function inferVatRate(bill: any): number | null {
+  // si l'IA te renvoie déjà un taux
+  const direct = pickFirstNumber(bill?.vat_rate, bill?.tva_rate, bill?.vat_percent);
+  if (direct != null) return clampVatRate(direct);
+
+  // fallback BE: beaucoup de factures résidentielles affichent 6%
+  // (on ne l'impose pas si on n'a aucun indice annuel HTVA)
+  return 6;
+}
+
+function inferAnnualTTC(bill: any) {
+  if (!bill) return bill;
+
+  // si déjà TTC, rien à faire
+  if (typeof bill.total_annual_ttc_eur === "number") return bill;
+
+  // on essaye de récupérer un total annuel "HT/HTVA" depuis différents champs possibles
+  const annualHT = pickFirstNumber(
+    bill.total_annual_htva_eur,
+    bill.total_annual_ht_eur,
+    bill.total_amount_eur, // ⚠️ legacy: parfois TTC, parfois HTVA selon extraction -> on garde garde-fous plus bas
+    bill.total_htva_eur,
+    bill.total_ht_eur
+  );
+
+  if (annualHT == null) return bill;
+
+  const vatRate = inferVatRate(bill);
+  if (vatRate == null) return bill;
+
+  const ttc = Math.round(annualHT * (1 + vatRate / 100) * 100) / 100;
+
+  // garde-fou: si on a déjà un TTC "legacy" et que ça diverge fortement, on n'écrase pas
+  if (typeof bill.total_amount_eur === "number") {
+    const legacy = bill.total_amount_eur;
+    const diff = Math.abs(legacy - ttc);
+    const rel = legacy > 0 ? diff / legacy : 0;
+    // si legacy est probablement déjà TTC (écart < 2%), on préfère legacy
+    if (rel < 0.02) {
+      bill.total_annual_ttc_eur = legacy;
+      bill.total_annual_ttc_inferred = true;
+      bill.total_annual_ttc_source = "legacy_total_amount_eur";
+      return bill;
+    }
+  }
+
+  bill.total_annual_ttc_eur = ttc;
+  bill.total_annual_ttc_inferred = true;
+  bill.total_annual_ttc_source = "inferred_from_ht_plus_vat";
+  bill.vat_rate_inferred = vatRate;
+
+  return bill;
+}
+
 
     // Heuristique: si subscription_annual_ht_eur ressemble à un montant mensuel (5–20€),
 // on le convertit en annuel (x12).
