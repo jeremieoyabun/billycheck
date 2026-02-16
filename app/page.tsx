@@ -11,22 +11,29 @@ export default function Home() {
         <div className="animate-billy-float inline-block mb-4">
           <Billy expression="normal" size={140} />
         </div>
-        <h1 className="font-display font-black text-[clamp(28px,6vw,42px)] leading-tight mb-3">
-          Hé 👋 Moi c'est <span className="text-billy-blue">Billy</span>.
-        </h1>
-        <p className="text-lg text-slate-600 max-w-md mx-auto leading-relaxed mb-7">
-          Envoie-moi ta facture d'électricité, je te dis en 30&nbsp;secondes
-          si tu pourrais payer moins cher.
-        </p>
-        <Link
-          href="/scan"
-          className="inline-flex items-center gap-2 px-9 py-4 bg-billy-blue text-white rounded-2xl text-lg font-display font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
-        >
-          🔍 Checker ma facture
-        </Link>
-        <p className="text-[13px] text-slate-400 mt-3.5">
-          Gratuit · Sans inscription · Facture supprimée après analyse
-        </p>
+<p className="font-display font-semibold text-[clamp(16px,3vw,20px)] text-slate-500 mb-2">
+  Hé 👋 Moi c’est <span className="text-billy-blue">Billy</span>.
+</p>
+
+        <p className="text-[clamp(17px,2.6vw,20px)] text-slate-700 max-w-md mx-auto leading-relaxed mb-6">
+  <span className="font-semibold text-slate-900">
+    Envoie-moi ta facture d’électricité
+  </span>
+  , et je te dis en{" "}
+  <span className="font-semibold text-billy-blue">30&nbsp;secondes</span>{" "}
+  si tu pourrais payer moins cher.
+</p>
+
+<Link
+  href="/scan"
+  className="inline-flex items-center justify-center gap-2 px-9 py-4 bg-billy-blue text-white rounded-2xl text-lg font-display font-bold shadow-[0_6px_18px_rgba(37,99,235,0.22)] hover:bg-billy-blue-dark hover:-translate-y-0.5 transition-all"
+>
+  🔍 Checker ma facture
+</Link>
+
+<p className="text-[13px] text-slate-500 font-medium mt-3.5">
+  🎁 2 scans gratuits · 🔒 Sans inscription · 🗑️ Facture supprimée après analyse
+</p>
       </section>
 
       {/* ── How it works ── */}

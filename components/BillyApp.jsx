@@ -457,33 +457,50 @@ export default function BillyCheckApp() {
     ],
   };
 
-  // FAQ data
-  const faqs = [
- {
-  q: "C'est vraiment gratuit ?",
-  a: "Oui. Les 2 premières analyses sont offertes, sans inscription ni carte bancaire. Ensuite, chaque scan supplémentaire est facturé 4,99\u00a0€, sans abonnement.",
-},
-    {
-      question: "Qu'est-ce que tu fais de ma facture, Billy ?",
-      answer: "Je lis ta facture pour en extraire les chiffres importants (montant, consommation, fournisseur). Ta facture est supprimée immédiatement après l'analyse. Je ne garde que les données chiffrées nécessaires à la comparaison — aucun nom, aucune adresse."
-    },
-    {
-      question: "Comment tu gagnes de l'argent ?",
-      answer: "Si tu décides de changer de fournisseur via un de mes liens, le fournisseur me verse une petite commission. Ça ne change absolument rien au prix de l'offre pour toi. C'est le même tarif que si tu y allais directement."
-    },
-    {
-      question: "Les résultats sont-ils fiables ?",
-      answer: "Les estimations sont basées sur les données de ta facture et les tarifs publics des fournisseurs. Ce sont des estimations indicatives — ton économie réelle peut varier selon ta consommation, la période, et les conditions spécifiques de chaque offre. Je te recommande toujours de vérifier les détails avant de souscrire."
-    },
-    {
-      question: "C'est compliqué de changer de fournisseur ?",
-      answer: "Non, en général c'est assez simple. Le nouveau fournisseur s'occupe de la plupart des démarches. Mais vérifie d'abord si tu es engagé(e) avec ton fournisseur actuel — il pourrait y avoir des frais de résiliation. Changer de fournisseur n'entraîne aucune coupure d'électricité."
-    },
-    {
-      question: "Mes données sont protégées ?",
-      answer: "Absolument. Ta facture est supprimée immédiatement après analyse. Je suis conforme au RGPD. Aucune donnée personnelle n'est conservée. Tu peux demander la suppression de tes données à tout moment via contact@billycheck.com."
-    },
-  ];
+// FAQ data
+const faqs = [
+  {
+    question: "C'est vraiment gratuit ?",
+    answer:
+      "Oui. Les 2 premières analyses sont offertes, sans inscription ni carte bancaire. À partir du 3e scan, chaque analyse supplémentaire est facturée 4,99 €, sans abonnement ni engagement."
+  },
+  {
+    question: "Qu'est-ce que Billy fait de ma facture ?",
+    answer:
+      "Billy lit la facture pour en extraire uniquement les données utiles à la comparaison (prix du kWh, consommation, abonnement). La facture est supprimée immédiatement après analyse. Aucune donnée personnelle comme le nom ou l'adresse n'est conservée."
+  },
+  {
+    question: "Combien puis-je économiser avec Billy ?",
+    answer:
+      "Les économies varient selon le fournisseur actuel, la consommation annuelle et les offres disponibles. Dans certains cas, la différence peut représenter plusieurs dizaines voire centaines d’euros par an. Billy fournit une estimation basée sur les données de la facture et les tarifs publics, sans garantie de montant exact."
+  },
+  {
+    question: "Comment Billy gagne de l’argent ?",
+    answer:
+      "Si un changement de fournisseur est effectué via un lien partenaire, le fournisseur peut verser une commission à Billy. Cela ne modifie pas le prix de l’offre pour le client. Le tarif est identique à celui proposé directement par le fournisseur."
+  },
+  {
+    question: "Les résultats sont-ils fiables ?",
+    answer:
+      "Les estimations sont calculées à partir des données extraites de la facture et des grilles tarifaires publiques des fournisseurs. Il s’agit d’indications comparatives. Le montant réel peut varier selon les conditions contractuelles et l’évolution des tarifs."
+  },
+  {
+    question: "Un scan est-il décompté si le fichier est invalide ?",
+    answer:
+      "Oui. Chaque analyse lancée est comptabilisée, même si le document transmis ne permet pas une extraction complète. Cela permet d’éviter les abus et de maintenir le service accessible à tous."
+  },
+  {
+    question: "Est-ce compliqué de changer de fournisseur ?",
+    answer:
+      "En général, le nouveau fournisseur prend en charge la majorité des démarches. Il n’y a pas de coupure d’électricité. Il est toutefois recommandé de vérifier d’éventuels frais de résiliation ou périodes d’engagement en cours."
+  },
+  {
+    question: "Mes données sont-elles protégées ?",
+    answer:
+      "Oui. Les factures sont supprimées immédiatement après analyse. BillyCheck respecte le RGPD. Aucune donnée personnelle inutile n’est conservée et une demande de suppression peut être effectuée à tout moment via contact@billycheck.com."
+  }
+];
+
 
   return (
     <div ref={appRef} style={{
