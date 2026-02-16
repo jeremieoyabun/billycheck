@@ -7,40 +7,38 @@ import { analyzeBill } from "@/lib/analyze-bill";
 import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
 
 /* ──────────────────────────────────────────────
+   Version tag — change this on every deploy
+   to prove Vercel is running YOUR code
+   ────────────────────────────────────────────── */
+const ROUTE_VERSION = "PROCESS-V4-2026-02-16";
+
+/* ──────────────────────────────────────────────
    Helpers
-────────────────────────────────────────────── */
+   ────────────────────────────────────────────── */
 function toNumberFR(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
-
   const s = String(v)
     .replace(/\u00A0/g, " ")
     .replace(/\s/g, "")
     .replace("€", "")
     .replace(",", ".");
-
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 
 function normalizeBillNumbers(bill: any) {
   if (!bill || typeof bill !== "object") return bill;
-
   return {
     ...bill,
-
-    // Nouveau modèle
     energy_unit_price_eur_kwh: toNumberFR(bill.energy_unit_price_eur_kwh),
     consumption_kwh_annual: toNumberFR(bill.consumption_kwh_annual),
     subscription_annual_ht_eur: toNumberFR(bill.subscription_annual_ht_eur),
     total_annual_ttc_eur: toNumberFR(bill.total_annual_ttc_eur),
-
     hp_unit_price_eur_kwh: toNumberFR(bill.hp_unit_price_eur_kwh),
     hc_unit_price_eur_kwh: toNumberFR(bill.hc_unit_price_eur_kwh),
     hp_consumption_kwh: toNumberFR(bill.hp_consumption_kwh),
     hc_consumption_kwh: toNumberFR(bill.hc_consumption_kwh),
-
-    // Legacy (au cas où)
     total_amount_eur: toNumberFR(bill.total_amount_eur),
     consumption_kwh: toNumberFR(bill.consumption_kwh),
     unit_price_eur_kwh: toNumberFR(bill.unit_price_eur_kwh),
@@ -54,7 +52,6 @@ function hasUsefulData(bill: any) {
     bill?.consumption_kwh_annual != null ||
     bill?.subscription_annual_ht_eur != null ||
     bill?.total_annual_ttc_eur != null ||
-    // legacy
     bill?.total_amount_eur != null ||
     bill?.consumption_kwh != null ||
     bill?.unit_price_eur_kwh != null ||
@@ -62,32 +59,20 @@ function hasUsefulData(bill: any) {
   );
 }
 
-/**
- * MIME inference robuste:
- * - priorité à l'extension du nom (plus fiable que file.type)
- * - fallback file.type si dispo
- */
-function inferMimeType(file: File) {
+function inferMimeType(file: File): string {
   const name = (file.name || "").toLowerCase().trim();
   if (name.endsWith(".pdf")) return "application/pdf";
   if (name.endsWith(".png")) return "image/png";
   if (name.endsWith(".webp")) return "image/webp";
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
-
   const t = (file.type || "").toLowerCase().trim();
   if (t) return t;
-
   return "application/octet-stream";
 }
 
-/* ──────────────────────────────────────────────
-   TTC inference helpers
-────────────────────────────────────────────── */
 function clampVatRate(v: number) {
   if (!Number.isFinite(v)) return 0;
-  if (v < 0) return 0;
-  if (v > 30) return 30;
-  return v;
+  return Math.max(0, Math.min(30, v));
 }
 
 function pickFirstNumber(...vals: any[]): number | null {
@@ -97,15 +82,8 @@ function pickFirstNumber(...vals: any[]): number | null {
   return null;
 }
 
-function inferVatRate(bill: any): number | null {
-  const direct = pickFirstNumber(bill?.vat_rate, bill?.tva_rate, bill?.vat_percent);
-  if (direct != null) return clampVatRate(direct);
-  return 6; // fallback BE fréquent
-}
-
 function inferAnnualTTC(bill: any) {
   if (!bill) return bill;
-
   if (typeof bill.total_annual_ttc_eur === "number") return bill;
 
   const annualHT = pickFirstNumber(
@@ -115,60 +93,50 @@ function inferAnnualTTC(bill: any) {
     bill.total_htva_eur,
     bill.total_ht_eur
   );
-
   if (annualHT == null) return bill;
 
-  const vatRate = inferVatRate(bill);
-  if (vatRate == null) return bill;
-
-  const ttc = Math.round(annualHT * (1 + vatRate / 100) * 100) / 100;
-
-  if (typeof bill.total_amount_eur === "number") {
-    const legacy = bill.total_amount_eur;
-    const diff = Math.abs(legacy - ttc);
-    const rel = legacy > 0 ? diff / legacy : 0;
-    if (rel < 0.02) {
-      bill.total_annual_ttc_eur = legacy;
-      bill.total_annual_ttc_inferred = true;
-      bill.total_annual_ttc_source = "legacy_total_amount_eur";
-      return bill;
-    }
-  }
+  const vatRate = pickFirstNumber(bill.vat_rate, bill.tva_rate, bill.vat_percent) ?? 6;
+  const ttc = Math.round(annualHT * (1 + clampVatRate(vatRate) / 100) * 100) / 100;
 
   bill.total_annual_ttc_eur = ttc;
   bill.total_annual_ttc_inferred = true;
-  bill.total_annual_ttc_source = "inferred_from_ht_plus_vat";
-  bill.vat_rate_inferred = vatRate;
-
   return bill;
 }
 
 /* ──────────────────────────────────────────────
-   Route
-────────────────────────────────────────────── */
+   POST handler
+   ────────────────────────────────────────────── */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+
+  // ╔══════════════════════════════════════════╗
+  // ║  HARD MARKER — if you see this in the   ║
+  // ║  response, the deploy is up to date     ║
+  // ╚══════════════════════════════════════════╝
+  console.log(`████ ${ROUTE_VERSION} ████ scan=${id} ████`);
 
   // 1) Validate scan exists
   const existing = await prisma.scan.findUnique({ where: { id } });
   if (!existing) {
-    return NextResponse.json({ ok: false, error: "Scan not found" }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: "Scan not found", _v: ROUTE_VERSION },
+      { status: 404 }
+    );
   }
 
-  
-  // 2) Check quota BEFORE processing
+  // 2) Check quota
   const uid = existing.userIdentifier ?? null;
   if (uid) {
     const quota = await getQuotaStatus(uid);
     if (!quota.canScan) {
       return NextResponse.json(
-        { ok: false, error: "NO_CREDITS", code: "PAYWALL_REQUIRED" },
+        { ok: false, error: "NO_CREDITS", code: "PAYWALL_REQUIRED", _v: ROUTE_VERSION },
         { status: 402 }
       );
     }
   }
 
-  // 3) Read file from FormData + engagement
+  // 3) Read file from FormData
   let file: File | null = null;
   let engagement: "yes" | "no" | "unknown" = (existing.engagement as any) ?? "unknown";
 
@@ -177,66 +145,126 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const maybeFile = form.get("file");
     const engParam = form.get("engagement");
 
-    if (typeof engParam === "string" && (engParam === "yes" || engParam === "no" || engParam === "unknown")) {
-      engagement = engParam;
+    if (typeof engParam === "string" && ["yes", "no", "unknown"].includes(engParam)) {
+      engagement = engParam as "yes" | "no" | "unknown";
     }
 
     if (maybeFile instanceof File) {
       file = maybeFile;
-      console.log("[process] file received", {
+      console.log(`[process][${ROUTE_VERSION}] file OK`, {
         id,
         name: file.name,
         type: file.type,
         size: file.size,
       });
     } else {
-      console.log("[process] no file in formData", { id, got: typeof maybeFile });
+      console.log(`[process][${ROUTE_VERSION}] NO FILE in formData`, {
+        id,
+        gotType: typeof maybeFile,
+        gotValue: String(maybeFile)?.slice(0, 100),
+      });
     }
   } catch (e) {
-    console.log("[process] formData parsing failed", { id, error: String(e) });
+    console.log(`[process][${ROUTE_VERSION}] formData parsing FAILED`, {
+      id,
+      error: String(e),
+    });
   }
 
-  // 4) Mark as PROCESSING
+  // ══════════════════════════════════════════
+  //  GUARD: if no file, fail immediately
+  //  (don't even try to analyze)
+  // ══════════════════════════════════════════
+  if (!file) {
+    const scan = await prisma.scan.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        engagement,
+        resultJson: JSON.parse(JSON.stringify({
+          error: "NO_FILE_IN_FORMDATA",
+          reason: "Le fichier n'a pas été reçu dans la requête. Réessayez.",
+          _v: ROUTE_VERSION,
+        })),
+      },
+    });
+    return NextResponse.json({
+      ok: false,
+      scan,
+      error: "NO_FILE_IN_FORMDATA",
+      _v: ROUTE_VERSION,
+    });
+  }
+
+  // 4) Convert file to Buffer + infer MIME
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const mimeType = inferMimeType(file);
+
+  console.log(`[process][${ROUTE_VERSION}] buffer ready`, {
+    id,
+    mimeType,
+    bufferLength: buffer.length,
+    firstBytes: buffer.slice(0, 8).toString("hex"),
+  });
+
+  // ══════════════════════════════════════════
+  //  GUARD: buffer must be non-empty
+  // ══════════════════════════════════════════
+  if (!buffer || buffer.length === 0) {
+    const scan = await prisma.scan.update({
+      where: { id },
+      data: {
+        status: "FAILED",
+        engagement,
+        resultJson: JSON.parse(JSON.stringify({
+          error: "EMPTY_FILE_BUFFER",
+          reason: "Le fichier reçu est vide (0 bytes).",
+          _v: ROUTE_VERSION,
+        })),
+      },
+    });
+    return NextResponse.json({
+      ok: false,
+      scan,
+      error: "EMPTY_FILE_BUFFER",
+      _v: ROUTE_VERSION,
+    });
+  }
+
+  // 5) Mark PROCESSING
   await prisma.scan.update({
     where: { id },
     data: { status: "PROCESSING", engagement },
   });
 
   try {
-    if (!file) throw new Error("NO_FILE");
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mimeType = inferMimeType(file);
-
-    // Debug ultra utile
-    console.log("[process] inferred mime", {
-      id,
-      fileName: file.name,
-      fileType: file.type,
-      inferred: mimeType,
-    });
-
-    // 4.1) Consume credit NOW (one attempt = one scan)
+    // 5.1) Consume credit
     if (uid) {
       try {
         await consumeScanCredit(uid);
       } catch (err) {
         console.error(`[process] Failed to consume credit for ${uid}:`, err);
         return NextResponse.json(
-          { ok: false, error: "NO_CREDITS", code: "PAYWALL_REQUIRED" },
+          { ok: false, error: "NO_CREDITS", code: "PAYWALL_REQUIRED", _v: ROUTE_VERSION },
           { status: 402 }
         );
       }
     }
 
-    // 5) Run analysis
+    // 6) Run analysis (this is where GPT is called)
+    console.log(`[process][${ROUTE_VERSION}] calling analyzeBill`, {
+      id,
+      mimeType,
+      bufferLength: buffer.length,
+    });
+
     const result = await analyzeBill(buffer, mimeType, engagement);
 
-    // 6) Normalize & enrich bill
+    // 7) Normalize & enrich
     const normalizedBill = normalizeBillNumbers(result?.bill);
     inferAnnualTTC(normalizedBill);
 
-    // Heuristique: abonnement mensuel détecté -> annualise
+    // Heuristique: abonnement mensuel -> annualise
     if (
       normalizedBill &&
       typeof normalizedBill.subscription_annual_ht_eur === "number" &&
@@ -251,103 +279,89 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const normalizedResult = { ...result, bill: normalizedBill };
 
-    // 7) Extraction vide -> DONE (cas métier)
+    // 8) Empty extraction
     if (!hasUsefulData(normalizedBill)) {
       const scan = await prisma.scan.update({
         where: { id },
         data: {
           status: "DONE",
-          resultJson: JSON.parse(
-            JSON.stringify({
-              ...normalizedResult,
-              error: "EMPTY_EXTRACTION",
-              reason: "Aucune donnée exploitable extraite.",
-            })
-          ),
+          resultJson: JSON.parse(JSON.stringify({
+            ...normalizedResult,
+            error: "EMPTY_EXTRACTION",
+            reason: "Aucune donnée exploitable extraite.",
+            _v: ROUTE_VERSION,
+          })),
         },
       });
-
-      return NextResponse.json({ ok: true, scan, code: "EMPTY_EXTRACTION" });
+      return NextResponse.json({ ok: true, scan, code: "EMPTY_EXTRACTION", _v: ROUTE_VERSION });
     }
 
-    // 8) Besoin facture annuelle -> DONE (cas métier)
-    const needsAnnual = normalizedResult?.bill?.needs_full_annual_invoice === true;
-    if (needsAnnual) {
+    // 9) Needs annual invoice
+    if (normalizedResult?.bill?.needs_full_annual_invoice === true) {
       const scan = await prisma.scan.update({
         where: { id },
-        data: { status: "DONE", resultJson: JSON.parse(JSON.stringify(normalizedResult)) },
+        data: {
+          status: "DONE",
+          resultJson: JSON.parse(JSON.stringify({ ...normalizedResult, _v: ROUTE_VERSION })),
+        },
       });
-
-      return NextResponse.json({ ok: true, scan, code: "NEEDS_ANNUAL_INVOICE" });
+      return NextResponse.json({ ok: true, scan, code: "NEEDS_ANNUAL_INVOICE", _v: ROUTE_VERSION });
     }
 
-    // 9) Save DONE
+    // 10) Success
     const scan = await prisma.scan.update({
       where: { id },
-      data: { status: "DONE", resultJson: JSON.parse(JSON.stringify(normalizedResult)) },
+      data: {
+        status: "DONE",
+        resultJson: JSON.parse(JSON.stringify({ ...normalizedResult, _v: ROUTE_VERSION })),
+      },
     });
-    console.log("██ PROCESS ROUTE MARKER 2026-02-16-1939 ██");
+    return NextResponse.json({ ok: true, scan, _v: ROUTE_VERSION });
 
-if (!scan) {
-  throw new Error("SCAN_NOT_FOUND");
-}
-
-if (!scan.fileKey) {
-  throw new Error("UPLOAD_MISSING_FILEKEY");
-}
-  
-
-    return NextResponse.json({ ok: true, scan });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[process] Scan ${id} failed:`, message);
+    console.error(`[process][${ROUTE_VERSION}] Scan ${id} FAILED:`, message);
 
-    // ✅ Cas métier: PDF scanné sans texte (pdf-parse renvoie vide)
+    // PDF scanné (pas de texte)
     if (message === "PDF_SCANNED_NEEDS_PHOTO") {
       const scan = await prisma.scan.update({
         where: { id },
         data: {
           status: "DONE",
-          resultJson: JSON.parse(
-            JSON.stringify({
-              error: "PDF_SCANNED_NEEDS_PHOTO",
-              reason:
-                "Ce PDF semble être un scan (image) sans texte extractible. Envoie une photo nette ou une capture d’écran de la page avec les montants.",
-            })
-          ),
+          resultJson: JSON.parse(JSON.stringify({
+            error: "PDF_SCANNED_NEEDS_PHOTO",
+            reason: "Ce PDF semble être un scan (image) sans texte extractible. Envoie une photo nette de ta facture.",
+            _v: ROUTE_VERSION,
+          })),
         },
       });
-
-      return NextResponse.json({ ok: true, scan, code: "PDF_SCANNED_NEEDS_PHOTO" });
+      return NextResponse.json({ ok: true, scan, code: "PDF_SCANNED_NEEDS_PHOTO", _v: ROUTE_VERSION });
     }
 
-    // ✅ Cas métier legacy: certains vieux codes peuvent encore lancer PDF_TEXT_EMPTY
-    if (message === "PDF_TEXT_EMPTY" || message === "PDF_NO_TEXT") {
+    // PDF vide / pas de texte
+    if (message === "PDF_TEXT_EMPTY" || message === "PDF_NO_TEXT" || message === "PDF_BUFFER_EMPTY") {
       const scan = await prisma.scan.update({
         where: { id },
         data: {
           status: "DONE",
-          resultJson: JSON.parse(
-            JSON.stringify({
-              error: "PDF_TEXT_EMPTY",
-              reason: "PDF scanné ou texte non extractible.",
-            })
-          ),
+          resultJson: JSON.parse(JSON.stringify({
+            error: message,
+            reason: "PDF scanné ou texte non extractible.",
+            _v: ROUTE_VERSION,
+          })),
         },
       });
-
-      return NextResponse.json({ ok: true, scan, code: "PDF_TEXT_EMPTY" });
+      return NextResponse.json({ ok: true, scan, code: message, _v: ROUTE_VERSION });
     }
 
-    // ❌ Autres erreurs
+    // Toute autre erreur
     const scan = await prisma.scan.update({
       where: { id },
       data: {
         status: "FAILED",
-        resultJson: JSON.parse(JSON.stringify({ error: message })),
+        resultJson: JSON.parse(JSON.stringify({ error: message, _v: ROUTE_VERSION })),
       },
     });
-
-    return NextResponse.json({ ok: false, scan, error: message });
+    return NextResponse.json({ ok: false, scan, error: message, _v: ROUTE_VERSION });
   }
 }

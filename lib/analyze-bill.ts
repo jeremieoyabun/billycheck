@@ -1,14 +1,20 @@
 // lib/analyze-bill.ts
 //
-// Stable extraction pipeline (Next.js 16, runtime=nodejs)
-// - Images  → GPT-4o Vision
-// - PDFs    → pdf-parse (text) → GPT-4o (text only, NO Vision)
-// - Scanned PDFs (no text) → throws PDF_SCANNED_NEEDS_PHOTO
+// v4-clean — 2026-02-16
 //
-// v3-clean — 2025-02
+// Pipeline:
+//   Image  → GPT-4o Vision
+//   PDF    → pdf-parse (text only) → GPT-4o (text only, NO Vision)
+//   Scanned PDF (no text) → throws PDF_SCANNED_NEEDS_PHOTO
+//
+// CRITICAL: pdf-parse@1.1.1 falls back to reading a TEST FILE
+// when called with undefined/null/empty buffer. We guard against
+// this by validating the buffer BEFORE calling pdf-parse.
 
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
+
+const ANALYZE_VERSION = "ANALYZE-V4-2026-02-16";
 
 /* ──────────────────────────────────────────────
    OpenAI client
@@ -227,25 +233,36 @@ function parseGPTResponse(raw: string): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   PDF → TEXT via pdf-parse (Buffer -> string)
+   PDF text extraction via pdf-parse
+   ────────────────────────────────────────────── 
+   CRITICAL: pdf-parse@1.1.1 falls back to reading
+   ./test/data/05-versions-space.pdf when called
+   with undefined/null/empty. We MUST guard here.
    ────────────────────────────────────────────── */
-async function extractPdfTextFromBuffer(pdfBuffer: Buffer): Promise<string> {
-  if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
-    throw new Error("Missing PDF buffer (empty/undefined).");
+async function extractPdfText(fileBuffer: Buffer): Promise<string> {
+  // ═══ GUARD: prevent pdf-parse test-file fallback ═══
+  if (!fileBuffer) {
+    throw new Error("PDF_BUFFER_EMPTY: fileBuffer is null/undefined");
+  }
+  if (!Buffer.isBuffer(fileBuffer)) {
+    throw new Error("PDF_BUFFER_EMPTY: fileBuffer is not a Buffer, got " + typeof fileBuffer);
+  }
+  if (fileBuffer.length === 0) {
+    throw new Error("PDF_BUFFER_EMPTY: fileBuffer has 0 bytes");
+  }
+  // ═══ Verify it looks like a PDF (starts with %PDF) ═══
+  const header = fileBuffer.slice(0, 5).toString("ascii");
+  if (!header.startsWith("%PDF")) {
+    console.warn("[analyze] Buffer does not start with %PDF, header:", header);
+    // Don't throw — some PDFs have BOM or whitespace before %PDF
   }
 
-const mod: any = await import("pdf-parse");
-const pdfParse: any = mod?.default ?? mod;
+  console.log(`[analyze][${ANALYZE_VERSION}] extractPdfText: buffer OK, ${fileBuffer.length} bytes`);
 
-console.log("██ PDF-PARSE BUFFER LENGTH =", (pdfBuffer as any)?.length, "isBuffer=", Buffer.isBuffer(pdfBuffer));
-
-if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
-  throw new Error("MISSING_PDF_BUFFER_BEFORE_PDFPARSE");
-}
-
-const parsed = await pdfParse(pdfBuffer);
-return (parsed?.text ?? "").trim();
-
+  const mod: any = await import("pdf-parse");
+  const parser = mod?.default ?? mod;
+  const parsed = await parser(fileBuffer);
+  return (parsed?.text ?? "").toString().trim();
 }
 
 /* ──────────────────────────────────────────────
@@ -260,7 +277,7 @@ async function extractFromImage(
     throw new Error("VISION_EXPECTS_IMAGE_MIME:" + (mimeType || "empty"));
   }
 
-  console.log("[analyze] IMAGE path — GPT-4o Vision, mime:", mimeType);
+  console.log(`[analyze][${ANALYZE_VERSION}] IMAGE path — GPT-4o Vision, mime: ${mimeType}`);
 
   const base64 = fileBuffer.toString("base64");
   const res = await openai.chat.completions.create({
@@ -288,13 +305,13 @@ async function extractFromImage(
 }
 
 /* ──────────────────────────────────────────────
-   PATH B — PDF → text → GPT (NO Vision)
+   PATH B — PDF text → GPT (text only, NO Vision)
    ────────────────────────────────────────────── */
 async function extractFromPdfTextWithGpt(
   openai: OpenAI,
   pdfText: string
 ): Promise<string> {
-  console.log("[analyze] PDF TEXT path — GPT-4o text-only, length:", pdfText.length);
+  console.log(`[analyze][${ANALYZE_VERSION}] PDF TEXT path — GPT-4o text-only, ${pdfText.length} chars`);
 
   const MAX = 24000;
   let payload = pdfText;
@@ -324,7 +341,12 @@ export async function extractBillData(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<ExtractedBill> {
-  console.log("████ ANALYZE-BILL-V3 ████ mime:", mimeType, "size:", fileBuffer.length);
+  console.log(`████ ${ANALYZE_VERSION} ████ mime: ${mimeType}, size: ${fileBuffer?.length ?? "NULL"}`);
+
+  // ═══ Top-level guard ═══
+  if (!fileBuffer || !Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+    throw new Error("PDF_BUFFER_EMPTY: extractBillData received invalid buffer");
+  }
 
   const openai = getOpenAI();
 
@@ -338,7 +360,7 @@ export async function extractBillData(
 
   // ── PDF → Text only (NO Vision, ever) ──
   if (isPdfMime(mimeType)) {
-    const pdfText = await extractPdfTextFromBuffer(fileBuffer);
+    const pdfText = await extractPdfText(fileBuffer);
 
     if (pdfText.length < 200) {
       throw new Error("PDF_SCANNED_NEEDS_PHOTO");
@@ -351,6 +373,7 @@ export async function extractBillData(
     return bill;
   }
 
+  // ── Unknown MIME ──
   throw new Error("UNSUPPORTED_MIME_TYPE:" + (mimeType || "empty"));
 }
 
@@ -380,7 +403,9 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
       const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
       const savings = Math.round(currentAnnualCost - annualCost);
       const savingsPercent =
-        currentAnnualCost > 0 ? Math.round((savings / currentAnnualCost) * 100) : 0;
+        currentAnnualCost > 0
+          ? Math.round((savings / currentAnnualCost) * 100)
+          : 0;
 
       return {
         provider: offer.provider,
@@ -407,6 +432,8 @@ export async function analyzeBill(
   engagement: string
 ): Promise<AnalysisResult> {
   const bill = await extractBillData(fileBuffer, mimeType);
-  const offersResult = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
+  const offersResult = bill.needs_full_annual_invoice
+    ? []
+    : compareOffers(bill, engagement);
   return { bill, offers: offersResult, engagement };
 }
