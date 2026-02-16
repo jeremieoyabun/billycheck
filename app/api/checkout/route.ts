@@ -5,20 +5,17 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { getUserIdentifier, setUserIdCookie } from "@/lib/user-id.server";
 
+const SCAN_PRICE_CENTS = 499; // 4,99 €
+
 export async function POST(req: Request) {
   try {
-    // Stripe not configured -> don't crash build / return 503 at runtime
     if (!stripe) {
-      return NextResponse.json(
-        { error: "Stripe not configured" },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
     }
 
     const body = await req.json().catch(() => ({} as any));
     let uid: string | undefined = body?.userIdentifier;
 
-    // Fallback to server-side identification
     if (!uid) {
       uid = await getUserIdentifier(req);
     }
@@ -29,15 +26,16 @@ export async function POST(req: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      // card => Apple Pay + Google Pay si activés côté Stripe
       payment_method_types: ["card", "bancontact"],
       line_items: [
         {
           price_data: {
             currency: "eur",
-            unit_amount: 99, // 0,99 €
+            unit_amount: SCAN_PRICE_CENTS, // 4,99 €
             product_data: {
-              name: "BillyCheck - Analyse de facture",
-              description: "1 analyse de facture d'électricité",
+              name: "BillyCheck - Scan supplémentaire",
+              description: "1 scan supplémentaire (après 2 scans gratuits)",
             },
           },
           quantity: 1,
@@ -45,17 +43,18 @@ export async function POST(req: Request) {
       ],
       metadata: {
         userIdentifier: uid,
+        product: "extra_scan",
+        unitAmountCents: String(SCAN_PRICE_CENTS),
       },
       success_url: `${appUrl}/scan?payment=success`,
       cancel_url: `${appUrl}/paywall?payment=cancelled`,
     });
 
-    // Track the payment
     await prisma.stripePayment.create({
       data: {
         sessionId: session.id,
         userIdentifier: uid,
-        amountCents: 99,
+        amountCents: SCAN_PRICE_CENTS,
         status: "pending",
       },
     });

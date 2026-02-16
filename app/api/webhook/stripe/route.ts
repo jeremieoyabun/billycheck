@@ -1,9 +1,12 @@
 export const runtime = "nodejs";
 
+
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { grantPaidCredit } from "@/lib/scan-gate";
+
+const SCAN_PRICE_CENTS = 499;
 
 export async function POST(req: Request) {
   // Stripe not configured → avoid build/runtime crash
@@ -59,6 +62,14 @@ export async function POST(req: Request) {
 
       // Grant 1 scan credit
       await grantPaidCredit(uid, 1);
+
+      const amountTotal = session.amount_total; // en cents
+const currency = session.currency;
+
+if (currency !== "eur" || amountTotal !== 499) {
+  console.error("[webhook] Unexpected amount/currency", { currency, amountTotal });
+  return NextResponse.json({ error: "Unexpected payment amount" }, { status: 400 });
+}
 
       console.log(
         `[webhook] Granted 1 credit to ${uid} (session ${session.id})`

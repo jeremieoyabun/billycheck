@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-
-const FREE_SCAN_LIMIT = 2;
+export const FREE_SCAN_LIMIT = 2;
+export const SCAN_PRICE_EUR = 4.99;
 
 export interface QuotaStatus {
   canScan: boolean;

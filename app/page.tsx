@@ -59,8 +59,8 @@ export default function Home() {
         <div className="grid grid-cols-3 gap-3">
           {([
             ["🔒", "Confidentiel", "Facture supprimée immédiatement après analyse"],
-            ["🎁", "1er check gratuit", "Puis 0,99\u00a0€ — moins qu'un café"],
-            ["⚡", "10 secondes", "Billy va vite. Très vite."],
+           ["🎁", "2 analyses offertes", "Puis 4,99\u00a0€ par scan supplémentaire"],
+            ["⚡", "30 secondes", "Billy va vite. Très vite."],
           ] as const).map(([icon, title, desc], i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
               <div className="text-3xl mb-2">{icon}</div>

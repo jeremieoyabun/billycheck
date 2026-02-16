@@ -133,6 +133,36 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = inferMimeType(file);
 
+    // 4.1) Consume credit NOW (one attempt = one scan)
+if (uid) {
+  try {
+    await consumeScanCredit(uid);
+  } catch (err) {
+    console.error(`[process] Failed to consume credit for ${uid}:`, err);
+    return NextResponse.json(
+      { ok: false, error: "NO_CREDITS", code: "PAYWALL_REQUIRED" },
+      { status: 402 }
+    );
+  }
+}
+
+
+    // 5) Consume credit NOW (one attempt = one scan), even if invalid extraction
+if (uid) {
+  try {
+    await consumeScanCredit(uid);
+  } catch (err) {
+    console.error(`[process] Failed to consume credit for ${uid}:`, err);
+    // si la conso échoue, on peut décider de bloquer ou continuer
+    // pour limiter les abus, on bloque
+    return NextResponse.json(
+      { ok: false, error: "CREDIT_CONSUME_FAILED" },
+      { status: 500 }
+    );
+  }
+}
+
+
     // 5) Run analysis
     const result = await analyzeBill(buffer, mimeType, engagement);
 
@@ -183,7 +213,7 @@ if (
 
 
 // ✅ Si l'IA dit qu'il faut une facture annuelle complète,
-// on sauvegarde le résultat (pour afficher le CTA) MAIS on ne consomme PAS de crédit.
+// on sauvegarde le résultat (pour afficher le CTA) 
 const needsAnnual = normalizedResult?.bill?.needs_full_annual_invoice === true;
 
 if (needsAnnual) {
@@ -202,10 +232,6 @@ if (needsAnnual) {
   });
 }
 
-
-
-
-
     // 6) Save result & mark DONE
     const scan = await prisma.scan.update({
       where: { id },
@@ -215,15 +241,7 @@ if (needsAnnual) {
       },
     });
 
-    // 7) Consume credit AFTER successful scan
-    if (uid) {
-      try {
-        await consumeScanCredit(uid);
-      } catch (err) {
-        console.error(`[process] Failed to consume credit for ${uid}:`, err);
-      }
-    }
-
+   
     return NextResponse.json({ ok: true, scan });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
