@@ -459,10 +459,10 @@ export default function BillyCheckApp() {
 
   // FAQ data
   const faqs = [
-    {
-      question: "C'est vraiment gratuit le premier check ?",
-      answer: "Oui ! Le premier check est totalement gratuit, sans inscription et sans carte bancaire. Les checks suivants sont à 0,99€ — moins qu'un café."
-    },
+ {
+  q: "C'est vraiment gratuit ?",
+  a: "Oui. Les 2 premières analyses sont offertes, sans inscription ni carte bancaire. Ensuite, chaque scan supplémentaire est facturé 4,99\u00a0€, sans abonnement.",
+},
     {
       question: "Qu'est-ce que tu fais de ma facture, Billy ?",
       answer: "Je lis ta facture pour en extraire les chiffres importants (montant, consommation, fournisseur). Ta facture est supprimée immédiatement après l'analyse. Je ne garde que les données chiffrées nécessaires à la comparaison — aucun nom, aucune adresse."
@@ -713,7 +713,7 @@ export default function BillyCheckApp() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "14px" }}>
               {[
                 { icon: "🔒", title: "Confidentiel", desc: "Ta facture est supprimée immédiatement après analyse" },
-                { icon: "🎁", title: "1er check gratuit", desc: "Puis 0,99€ — moins qu'un café" },
+["🎁", "2 analyses gratuites", "Ensuite 4,99\u00a0€ — sans engagement"],
                 { icon: "⚡", title: "30 secondes", desc: "Billy va vite. Très vite." },
               ].map((t, i) => (
                 <div key={i} style={{
