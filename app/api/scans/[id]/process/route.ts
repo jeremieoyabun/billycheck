@@ -297,17 +297,41 @@ if (needsAnnual) {
    
     return NextResponse.json({ ok: true, scan });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[process] Scan ${id} failed:`, message);
+  const message = err instanceof Error ? err.message : "Unknown error";
+  console.error(`[process] Scan ${id} failed:`, message);
 
+  // ✅ Cas spécial : PDF scanné sans texte exploitable
+  if (message === "PDF_TEXT_EMPTY") {
     const scan = await prisma.scan.update({
       where: { id },
       data: {
-        status: "FAILED",
-        resultJson: JSON.parse(JSON.stringify({ error: message })),
+        status: "DONE", // important : pas FAILED
+        resultJson: JSON.parse(
+          JSON.stringify({
+            error: "PDF_TEXT_EMPTY",
+            reason: "Ce PDF semble être une image scannée sans texte exploitable.",
+          })
+        ),
       },
     });
 
-    return NextResponse.json({ ok: false, scan, error: message });
+    return NextResponse.json({
+      ok: true,
+      scan,
+      code: "PDF_TEXT_EMPTY",
+    });
   }
+
+  // ❌ Autres erreurs classiques
+  const scan = await prisma.scan.update({
+    where: { id },
+    data: {
+      status: "FAILED",
+      resultJson: JSON.parse(JSON.stringify({ error: message })),
+    },
+  });
+
+  return NextResponse.json({ ok: false, scan, error: message });
+}
+
 }

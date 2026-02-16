@@ -122,12 +122,30 @@ function isPdfMime(mimeType: string) {
   return mimeType === "application/pdf";
 }
 
-async function extractPdfText(fileBuffer: Buffer): Promise<string> {
-  const mod: any = await import("pdf-parse");
-  const parser = mod?.default ?? mod;
-  const parsed = await parser(fileBuffer);
-  return (parsed?.text ?? "").toString();
+async function extractPdfText(fileBuffer: Buffer): Promise<{ text: string; numPages: number }> {
+  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
+  const pdf = await loadingTask.promise;
+
+  const pages: string[] = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+
+    const pageText = (content.items || [])
+      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
+      .filter(Boolean)
+      .join(" ");
+
+    pages.push(`[PAGE ${i}]\n${pageText}`);
+  }
+
+  const text = pages.join("\n\n").trim();
+  return { text, numPages: pdf.numPages };
 }
+
 
 function numOrNull(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -265,22 +283,45 @@ export async function extractBillData(
   }
 
   if (isPdfMime(mimeType)) {
-    const pdfText = (await extractPdfText(fileBuffer)).trim();
-    if (pdfText.length < 50) throw new Error("PDF_NO_TEXT");
+  const { text, numPages } = await extractPdfText(fileBuffer);
+  const pdfText = text.trim();
 
-    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-      { type: "text", text: `${EXTRACTION_PROMPT}\n\n--- CONTENU DE LA FACTURE ---\n\n${pdfText.slice(0, 12000)}` },
-    ];
-
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content }],
-      max_tokens: 1400,
-      temperature: 0.1,
-    });
-
-    return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+  if (pdfText.length < 200) {
+    // on marque explicitement un PDF sans texte exploitable
+    // plutôt que "PDF_NO_TEXT" générique
+    throw new Error("PDF_TEXT_EMPTY");
   }
+
+  const MAX = 24000; // un peu plus large
+  let payloadText = pdfText;
+
+  if (pdfText.length > MAX) {
+    const head = pdfText.slice(0, 14000);
+    const tail = pdfText.slice(-8000);
+    payloadText = `${head}\n\n[...] (TRONQUÉ)\n\n${tail}`;
+  }
+
+  const content: OpenAI.Chat.ChatCompletionContentPart[] = [
+    {
+      type: "text",
+      text:
+        `${EXTRACTION_PROMPT}\n\n` +
+        `META: PDF ${numPages} pages.\n\n` +
+        `--- CONTENU DE LA FACTURE (multi-pages) ---\n\n` +
+        payloadText,
+    },
+  ];
+
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_tokens: 1400,
+    temperature: 0.1,
+  });
+
+  return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+}
+
 
   throw new Error("UNSUPPORTED_MIME_TYPE");
 }
