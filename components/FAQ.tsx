@@ -3,10 +3,11 @@
 import { useState } from "react";
 
 const FAQS = [
-  {
-    q: "C'est vraiment gratuit le premier check ?",
-    a: "Oui ! Le premier check est totalement gratuit, sans inscription et sans carte bancaire. Les checks suivants sont à 0,99\u00a0€ — moins qu'un café.",
-  },
+{
+  q: "C'est vraiment gratuit ?",
+  a: "Oui. Les 2 premières analyses sont offertes, sans inscription ni carte bancaire. Ensuite, chaque scan supplémentaire est facturé 4,99\u00a0€, sans abonnement.",
+},
+
   {
     q: "Qu'est-ce que tu fais de ma facture, Billy ?",
     a: "Je lis ta facture pour en extraire les chiffres importants (montant, consommation, fournisseur). Ta facture est supprimée immédiatement après l'analyse. Je ne garde que les données chiffrées nécessaires à la comparaison — aucun nom, aucune adresse.",
