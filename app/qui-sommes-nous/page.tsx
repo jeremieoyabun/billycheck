@@ -105,8 +105,7 @@ export default function QuiSommesNousPage() {
                 />
               </div>
               <p className="text-xs text-slate-500 mt-3 px-2">
-                <span className="font-mono">/public/team.jpg</span>.
-              </p>
+                              </p>
             </div>
           </div>
         </div>
