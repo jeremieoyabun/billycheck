@@ -8,16 +8,16 @@ import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
 
 /* ──────────────────────────────────────────────
    Helpers
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 function toNumberFR(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
 
   const s = String(v)
-    .replace(/\u00A0/g, " ") // NBSP -> space
-    .replace(/\s/g, "") // remove spaces
+    .replace(/\u00A0/g, " ")
+    .replace(/\s/g, "")
     .replace("€", "")
-    .replace(",", "."); // FR comma -> dot
+    .replace(",", ".");
 
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -40,7 +40,7 @@ function normalizeBillNumbers(bill: any) {
     hp_consumption_kwh: toNumberFR(bill.hp_consumption_kwh),
     hc_consumption_kwh: toNumberFR(bill.hc_consumption_kwh),
 
-    // Legacy (si jamais encore présent)
+    // Legacy (au cas où)
     total_amount_eur: toNumberFR(bill.total_amount_eur),
     consumption_kwh: toNumberFR(bill.consumption_kwh),
     unit_price_eur_kwh: toNumberFR(bill.unit_price_eur_kwh),
@@ -54,7 +54,7 @@ function hasUsefulData(bill: any) {
     bill?.consumption_kwh_annual != null ||
     bill?.subscription_annual_ht_eur != null ||
     bill?.total_annual_ttc_eur != null ||
-    // legacy fallback
+    // legacy
     bill?.total_amount_eur != null ||
     bill?.consumption_kwh != null ||
     bill?.unit_price_eur_kwh != null ||
@@ -62,22 +62,31 @@ function hasUsefulData(bill: any) {
   );
 }
 
+/**
+ * MIME inference robuste:
+ * - priorité à l'extension du nom (plus fiable que file.type)
+ * - fallback file.type si dispo
+ */
 function inferMimeType(file: File) {
-  if (file.type) return file.type;
-  const name = (file.name || "").toLowerCase();
+  const name = (file.name || "").toLowerCase().trim();
   if (name.endsWith(".pdf")) return "application/pdf";
   if (name.endsWith(".png")) return "image/png";
   if (name.endsWith(".webp")) return "image/webp";
-  return "image/jpeg";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+
+  const t = (file.type || "").toLowerCase().trim();
+  if (t) return t;
+
+  return "application/octet-stream";
 }
 
 /* ──────────────────────────────────────────────
    TTC inference helpers
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 function clampVatRate(v: number) {
   if (!Number.isFinite(v)) return 0;
   if (v < 0) return 0;
-  if (v > 30) return 30; // garde-fou
+  if (v > 30) return 30;
   return v;
 }
 
@@ -89,25 +98,20 @@ function pickFirstNumber(...vals: any[]): number | null {
 }
 
 function inferVatRate(bill: any): number | null {
-  // si l'IA te renvoie déjà un taux
   const direct = pickFirstNumber(bill?.vat_rate, bill?.tva_rate, bill?.vat_percent);
   if (direct != null) return clampVatRate(direct);
-
-  // fallback BE: beaucoup de factures résidentielles affichent 6%
-  return 6;
+  return 6; // fallback BE fréquent
 }
 
 function inferAnnualTTC(bill: any) {
   if (!bill) return bill;
 
-  // si déjà TTC, rien à faire
   if (typeof bill.total_annual_ttc_eur === "number") return bill;
 
-  // on essaye de récupérer un total annuel "HT/HTVA" depuis différents champs possibles
   const annualHT = pickFirstNumber(
     bill.total_annual_htva_eur,
     bill.total_annual_ht_eur,
-    bill.total_amount_eur, // legacy: peut être TTC ou HTVA
+    bill.total_amount_eur,
     bill.total_htva_eur,
     bill.total_ht_eur
   );
@@ -119,7 +123,6 @@ function inferAnnualTTC(bill: any) {
 
   const ttc = Math.round(annualHT * (1 + vatRate / 100) * 100) / 100;
 
-  // garde-fou: si legacy_total ressemble déjà au TTC, on préfère legacy
   if (typeof bill.total_amount_eur === "number") {
     const legacy = bill.total_amount_eur;
     const diff = Math.abs(legacy - ttc);
@@ -142,7 +145,7 @@ function inferAnnualTTC(bill: any) {
 
 /* ──────────────────────────────────────────────
    Route
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
@@ -164,12 +167,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
   }
 
-  // 3) Read file from FormData
+  // 3) Read file from FormData + engagement
   let file: File | null = null;
+  let engagement: "yes" | "no" | "unknown" = (existing.engagement as any) ?? "unknown";
 
   try {
     const form = await req.formData();
     const maybeFile = form.get("file");
+    const engParam = form.get("engagement");
+
+    if (typeof engParam === "string" && (engParam === "yes" || engParam === "no" || engParam === "unknown")) {
+      engagement = engParam;
+    }
 
     if (maybeFile instanceof File) {
       file = maybeFile;
@@ -189,7 +198,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // 4) Mark as PROCESSING
   await prisma.scan.update({
     where: { id },
-    data: { status: "PROCESSING" },
+    data: { status: "PROCESSING", engagement },
   });
 
   try {
@@ -197,6 +206,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const mimeType = inferMimeType(file);
+
+    // Debug ultra utile
+    console.log("[process] inferred mime", {
+      id,
+      fileName: file.name,
+      fileType: file.type,
+      inferred: mimeType,
+    });
 
     // 4.1) Consume credit NOW (one attempt = one scan)
     if (uid) {
@@ -212,14 +229,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     // 5) Run analysis
-    const engagement = "unknown";
     const result = await analyzeBill(buffer, mimeType, engagement);
 
-    // 6) Normalize & enrich result
+    // 6) Normalize & enrich bill
     const normalizedBill = normalizeBillNumbers(result?.bill);
     inferAnnualTTC(normalizedBill);
 
-    // Heuristique: si subscription_annual_ht_eur ressemble à un montant mensuel (5–20€), on le convertit en annuel (x12).
+    // Heuristique: abonnement mensuel détecté -> annualise
     if (
       normalizedBill &&
       typeof normalizedBill.subscription_annual_ht_eur === "number" &&
@@ -234,18 +250,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const normalizedResult = { ...result, bill: normalizedBill };
 
-    // 7) Handle PDF scanné / texte vide (cas métier, pas un crash)
-    // -> ce cas arrive via catch (PDF_TEXT_EMPTY), mais on garde un garde-fou ici si jamais l'IA renvoie un flag
-    if (normalizedResult?.bill?.pdf_text_empty === true) {
-      const scan = await prisma.scan.update({
-        where: { id },
-        data: { status: "DONE", resultJson: JSON.parse(JSON.stringify(normalizedResult)) },
-      });
-
-      return NextResponse.json({ ok: true, scan, code: "PDF_TEXT_EMPTY" });
-    }
-
-    // 8) If nothing usable extracted: DONE + code explicite (pas FAILED)
+    // 7) Extraction vide -> DONE (cas métier)
     if (!hasUsefulData(normalizedBill)) {
       const scan = await prisma.scan.update({
         where: { id },
@@ -264,7 +269,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ ok: true, scan, code: "EMPTY_EXTRACTION" });
     }
 
-    // 9) If the AI asks for annual invoice: DONE + code explicite
+    // 8) Besoin facture annuelle -> DONE (cas métier)
     const needsAnnual = normalizedResult?.bill?.needs_full_annual_invoice === true;
     if (needsAnnual) {
       const scan = await prisma.scan.update({
@@ -275,7 +280,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ ok: true, scan, code: "NEEDS_ANNUAL_INVOICE" });
     }
 
-    // 10) Save result & mark DONE
+    // 9) Save DONE
     const scan = await prisma.scan.update({
       where: { id },
       data: { status: "DONE", resultJson: JSON.parse(JSON.stringify(normalizedResult)) },
@@ -286,7 +291,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[process] Scan ${id} failed:`, message);
 
-    // ✅ Cas spécial : PDF scanné sans texte exploitable
+    // ✅ Cas métier: PDF scanné sans texte (pdf-parse renvoie vide)
+    if (message === "PDF_SCANNED_NEEDS_PHOTO") {
+      const scan = await prisma.scan.update({
+        where: { id },
+        data: {
+          status: "DONE",
+          resultJson: JSON.parse(
+            JSON.stringify({
+              error: "PDF_SCANNED_NEEDS_PHOTO",
+              reason:
+                "Ce PDF semble être un scan (image) sans texte extractible. Envoie une photo nette ou une capture d’écran de la page avec les montants.",
+            })
+          ),
+        },
+      });
+
+      return NextResponse.json({ ok: true, scan, code: "PDF_SCANNED_NEEDS_PHOTO" });
+    }
+
+    // ✅ Cas métier legacy: certains vieux codes peuvent encore lancer PDF_TEXT_EMPTY
     if (message === "PDF_TEXT_EMPTY" || message === "PDF_NO_TEXT") {
       const scan = await prisma.scan.update({
         where: { id },
@@ -301,14 +325,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         },
       });
 
-      return NextResponse.json({
-        ok: true,
-        scan,
-        code: "PDF_TEXT_EMPTY",
-      });
+      return NextResponse.json({ ok: true, scan, code: "PDF_TEXT_EMPTY" });
     }
 
-    // ❌ Autres erreurs classiques
+    // ❌ Autres erreurs
     const scan = await prisma.scan.update({
       where: { id },
       data: {

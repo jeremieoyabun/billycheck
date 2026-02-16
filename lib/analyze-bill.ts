@@ -1,27 +1,29 @@
 // lib/analyze-bill.ts
 //
-// ✅ VERSION STABLE (Vercel/Next.js/nodejs)
-// - Image (jpg/png/webp) -> GPT Vision
-// - PDF multi-pages -> GPT Vision (PDF base64)
-// - AUCUN pdfjs / AUCUN canvas -> pas de DOMMatrix
+// Stable extraction pipeline (Next.js runtime=nodejs)
+// - Images: GPT Vision (chat.completions)
+// - PDFs with text: pdf-parse -> GPT (text)
+// - Scanned PDFs (no text): throws PDF_SCANNED_NEEDS_PHOTO
 //
-// Dépendances: openai uniquement (déjà dans ton package.json)
+// Dependencies:
+//   npm i openai pdf-parse
+//   npm i -D @types/pdf-parse
 
 import OpenAI from "openai";
 import offers from "../data/offers.json";
 
 /* ──────────────────────────────────────────────
-   OpenAI lazy init
-   ────────────────────────────────────────────── */
+   OpenAI
+────────────────────────────────────────────── */
 function getOpenAI() {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) throw new Error("OPENAI_API_KEY_MISSING");
   return new OpenAI({ apiKey });
 }
 
 /* ──────────────────────────────────────────────
    Types
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 export type ExtractionConfidence = "ok" | "partial" | "insufficient";
 
 export interface ExtractedBill {
@@ -32,24 +34,24 @@ export interface ExtractedBill {
   billing_period: string | null;
 
   // 4 valeurs indispensables (annuelles)
-  energy_unit_price_eur_kwh: number | null; // TTC (moyenne pondérée si HP/HC)
+  energy_unit_price_eur_kwh: number | null; // TTC
   consumption_kwh_annual: number | null; // kWh/an
-  subscription_annual_ht_eur: number | null; // €/an HT (fournisseur uniquement)
+  subscription_annual_ht_eur: number | null; // €/an HT fournisseur
   total_annual_ttc_eur: number | null; // €/an TTC
 
-  // Détails HP/HC (si trouvés)
+  // HP/HC
   hp_unit_price_eur_kwh: number | null;
   hc_unit_price_eur_kwh: number | null;
   hp_consumption_kwh: number | null;
   hc_consumption_kwh: number | null;
 
-  // Qualité extraction
   confidence: ExtractionConfidence;
   missing_fields: string[];
   needs_full_annual_invoice: boolean;
 
-  // Debug UX (optionnel)
-  extraction_mode?: "image_vision" | "pdf_vision";
+  // Debug (optionnel)
+  extraction_mode?: "image_vision" | "pdf_text";
+  pdf_text_length?: number;
 }
 
 export interface OfferResult {
@@ -70,9 +72,9 @@ export interface AnalysisResult {
 }
 
 /* ──────────────────────────────────────────────
-   Prompt (STRICT)
-   ────────────────────────────────────────────── */
-const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité belges.
+   Prompt STRICT
+────────────────────────────────────────────── */
+const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité.
 Analyse la facture et réponds UNIQUEMENT avec un objet JSON valide (sans backticks, sans texte).
 
 Objectif: extraire 4 valeurs indispensables pour comparer des offres:
@@ -84,13 +86,11 @@ Objectif: extraire 4 valeurs indispensables pour comparer des offres:
 Règles STRICTES:
 - N'invente jamais.
 - IMPORTANT "subscription_annual_ht_eur":
-  Ce champ correspond UNIQUEMENT à la redevance fixe du FOURNISSEUR (abonnement/fee fournisseur).
-  N’inclus JAMAIS : distribution, transport, terme fixe réseau, redevances de raccordement, taxes, prosumer, énergie renouvelable, contributions, ou tout autre poste non-fournisseur.
+  Ce champ correspond UNIQUEMENT à la redevance fixe du FOURNISSEUR.
+  N’inclus JAMAIS : distribution, transport, terme fixe réseau, redevances de raccordement, taxes, prosumer,
+  énergie renouvelable, contributions, ou tout autre poste non-fournisseur.
   Si la facture ne donne pas clairement un TOTAL ANNUEL de cette redevance fournisseur, mets null.
-  Si tu vois une redevance fixe sur plusieurs périodes, additionne seulement si ce sont clairement des redevances fournisseur.
   Ne transforme jamais un montant mensuel en annuel.
-  Indices autorisés: "redevance fixe", "abonnement", "fee", "frais fixe fournisseur"
-  Indices interdits: "distribution", "transport", "terme fixe", "prosumer", "raccordement", "taxe", "accise", "TVA", "énergie renouvelable", "contribution"
 - Ne fais PAS d'extrapolation automatique.
 - Si une valeur n'est pas clairement visible, mets null.
 - Si bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
@@ -120,12 +120,18 @@ Si ce n'est pas une facture d'électricité, retourne tous les champs à null.`;
 
 /* ──────────────────────────────────────────────
    Helpers
-   ────────────────────────────────────────────── */
-function isImageMime(mimeType: string) {
-  return typeof mimeType === "string" && mimeType.startsWith("image/");
+────────────────────────────────────────────── */
+function normalizeMime(mimeType: string) {
+  return (mimeType || "").toLowerCase().trim();
 }
+
+function isImageMime(mimeType: string) {
+  return normalizeMime(mimeType).startsWith("image/");
+}
+
 function isPdfMime(mimeType: string) {
-  return mimeType === "application/pdf";
+  // robuste: gère "application/pdf" + variantes
+  return normalizeMime(mimeType).includes("pdf");
 }
 
 function numOrNull(v: any): number | null {
@@ -174,6 +180,19 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
   };
 }
 
+/* ──────────────────────────────────────────────
+   PDF text extraction (pdf-parse) - safe import
+────────────────────────────────────────────── */
+async function extractPdfText(fileBuffer: Buffer): Promise<string> {
+  const mod: any = await import("pdf-parse");
+  const parser = mod?.default ?? mod;
+  const parsed = await parser(fileBuffer);
+  return (parsed?.text ?? "").toString().trim();
+}
+
+/* ──────────────────────────────────────────────
+   GPT parsing
+────────────────────────────────────────────── */
 function parseGPTResponse(raw: string): ExtractedBill {
   const cleaned = (raw || "").replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
@@ -188,6 +207,7 @@ function parseGPTResponse(raw: string): ExtractedBill {
   const hcPrice = numOrNull(data.hc_unit_price_eur_kwh);
   const hpKwh = numOrNull(data.hp_consumption_kwh);
   const hcKwh = numOrNull(data.hc_consumption_kwh);
+
   const weighted = computeWeightedPrice(hpPrice, hcPrice, hpKwh, hcKwh);
 
   const bill: ExtractedBill = {
@@ -216,69 +236,92 @@ function parseGPTResponse(raw: string): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   Core: extract bill data (Vision only)
-   ────────────────────────────────────────────── */
-export async function extractBillData(fileBuffer: Buffer, mimeType: string): Promise<ExtractedBill> {
-  const openai = getOpenAI();
-  if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
+   GPT calls
+────────────────────────────────────────────── */
+async function extractFromImage(openai: OpenAI, fileBuffer: Buffer, mimeType: string): Promise<string> {
+  // Guard rail: NEVER allow pdf here
+  if (!isImageMime(mimeType)) {
+    throw new Error(`VISION_EXPECTS_IMAGE_MIME:${mimeType || "empty"}`);
+  }
 
   const base64 = fileBuffer.toString("base64");
 
-  // ✅ Image -> Vision
+  const content: any[] = [
+    { type: "text", text: EXTRACTION_PROMPT },
+    { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" } },
+  ];
+
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_tokens: 1500,
+    temperature: 0.1,
+  });
+
+  return res.choices[0]?.message?.content ?? "{}";
+}
+
+async function extractFromPdfText(openai: OpenAI, pdfText: string): Promise<string> {
+  const MAX = 24000;
+  let payload = (pdfText || "").trim();
+
+  if (payload.length > MAX) {
+    payload = `${payload.slice(0, 14000)}\n\n[...] (TRONQUÉ)\n\n${payload.slice(-8000)}`;
+  }
+
+  const content: any[] = [
+    {
+      type: "text",
+      text: `${EXTRACTION_PROMPT}\n\n--- CONTENU FACTURE (TEXTE EXTRACT) ---\n\n${payload}`,
+    },
+  ];
+
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content }],
+    max_tokens: 1500,
+    temperature: 0.1,
+  });
+
+  return res.choices[0]?.message?.content ?? "{}";
+}
+
+/* ──────────────────────────────────────────────
+   Main extraction
+────────────────────────────────────────────── */
+export async function extractBillData(fileBuffer: Buffer, mimeType: string): Promise<ExtractedBill> {
+  const openai = getOpenAI();
+
+  // IMAGE -> Vision
   if (isImageMime(mimeType)) {
-    const content = [
-      { type: "text" as const, text: EXTRACTION_PROMPT },
-      {
-        type: "image_url" as const,
-        image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" as const },
-      },
-    ];
-
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content }],
-      max_tokens: 1400,
-      temperature: 0.1,
-    });
-
-    const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+    const raw = await extractFromImage(openai, fileBuffer, mimeType);
+    const bill = parseGPTResponse(raw);
     bill.extraction_mode = "image_vision";
     return bill;
   }
 
-  // ✅ PDF multi-pages -> Vision (PDF base64)
+  // PDF -> Text-only (stable)
   if (isPdfMime(mimeType)) {
-    const content = [
-      {
-        type: "text" as const,
-        text:
-          `${EXTRACTION_PROMPT}\n\n` +
-          `Lis toutes les pages de ce PDF et extrais les champs demandés.`,
-      },
-      {
-        type: "image_url" as const,
-        image_url: { url: `data:application/pdf;base64,${base64}`, detail: "high" as const },
-      },
-    ];
+    const pdfText = await extractPdfText(fileBuffer);
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content }],
-      max_tokens: 1400,
-      temperature: 0.1,
-    });
+    // Scanned PDF -> no text
+    if ((pdfText || "").trim().length < 200) {
+      throw new Error("PDF_SCANNED_NEEDS_PHOTO");
+    }
 
-    const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
-    bill.extraction_mode = "pdf_vision";
+    const raw = await extractFromPdfText(openai, pdfText);
+    const bill = parseGPTResponse(raw);
+    bill.extraction_mode = "pdf_text";
+    bill.pdf_text_length = pdfText.length;
     return bill;
   }
 
-  throw new Error("UNSUPPORTED_MIME_TYPE");
+  throw new Error(`UNSUPPORTED_MIME_TYPE:${mimeType || "empty"}`);
 }
 
 /* ──────────────────────────────────────────────
    Compare offers
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 export function compareOffers(bill: ExtractedBill, _engagement: string): OfferResult[] {
   const annualKwh = bill.consumption_kwh_annual;
   if (!annualKwh || annualKwh <= 0) return [];
@@ -316,19 +359,13 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
 
 /* ──────────────────────────────────────────────
    Pipeline
-   ────────────────────────────────────────────── */
+────────────────────────────────────────────── */
 export async function analyzeBill(
   fileBuffer: Buffer,
   mimeType: string,
   engagement: string
 ): Promise<AnalysisResult> {
   const bill = await extractBillData(fileBuffer, mimeType);
-
-  const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
-
-  return {
-    bill,
-    offers: offerResults,
-    engagement,
-  };
+  const offersResult = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
+  return { bill, offers: offersResult, engagement };
 }
