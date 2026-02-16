@@ -227,13 +227,18 @@ function parseGPTResponse(raw: string): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   PDF text extraction via pdf-parse
+   PDF → TEXT via pdf-parse (Buffer -> string)
    ────────────────────────────────────────────── */
-async function extractPdfText(fileBuffer: Buffer): Promise<string> {
+async function extractPdfTextFromBuffer(pdfBuffer: Buffer): Promise<string> {
+  if (!pdfBuffer || !Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+    throw new Error("Missing PDF buffer (empty/undefined).");
+  }
+
   const mod: any = await import("pdf-parse");
-  const parser = mod?.default ?? mod;
-  const parsed = await (parser as (buf: Buffer) => Promise<{ text: string }>)(fileBuffer);
-  return (parsed?.text ?? "").toString().trim();
+  const pdfParse: any = mod?.default ?? mod;
+
+  const parsed = await pdfParse(pdfBuffer);
+  return (parsed?.text ?? "").trim();
 }
 
 /* ──────────────────────────────────────────────
@@ -244,7 +249,6 @@ async function extractFromImage(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<string> {
-  // GUARD: never allow non-image MIME here
   if (!isImageMime(mimeType)) {
     throw new Error("VISION_EXPECTS_IMAGE_MIME:" + (mimeType || "empty"));
   }
@@ -277,9 +281,9 @@ async function extractFromImage(
 }
 
 /* ──────────────────────────────────────────────
-   PATH B — PDF → pdf-parse → text → GPT (NO Vision)
+   PATH B — PDF → text → GPT (NO Vision)
    ────────────────────────────────────────────── */
-async function extractFromPdfText(
+async function extractFromPdfTextWithGpt(
   openai: OpenAI,
   pdfText: string
 ): Promise<string> {
@@ -327,20 +331,19 @@ export async function extractBillData(
 
   // ── PDF → Text only (NO Vision, ever) ──
   if (isPdfMime(mimeType)) {
-    const pdfText = await extractPdfText(fileBuffer);
+    const pdfText = await extractPdfTextFromBuffer(fileBuffer);
 
     if (pdfText.length < 200) {
       throw new Error("PDF_SCANNED_NEEDS_PHOTO");
     }
 
-    const raw = await extractFromPdfText(openai, pdfText);
+    const raw = await extractFromPdfTextWithGpt(openai, pdfText);
     const bill = parseGPTResponse(raw);
     bill.extraction_mode = "pdf_text";
     bill.pdf_text_length = pdfText.length;
     return bill;
   }
 
-  // ── Unknown MIME → reject ──
   throw new Error("UNSUPPORTED_MIME_TYPE:" + (mimeType || "empty"));
 }
 
@@ -370,9 +373,7 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
       const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
       const savings = Math.round(currentAnnualCost - annualCost);
       const savingsPercent =
-        currentAnnualCost > 0
-          ? Math.round((savings / currentAnnualCost) * 100)
-          : 0;
+        currentAnnualCost > 0 ? Math.round((savings / currentAnnualCost) * 100) : 0;
 
       return {
         provider: offer.provider,
@@ -399,8 +400,6 @@ export async function analyzeBill(
   engagement: string
 ): Promise<AnalysisResult> {
   const bill = await extractBillData(fileBuffer, mimeType);
-  const offersResult = bill.needs_full_annual_invoice
-    ? []
-    : compareOffers(bill, engagement);
+  const offersResult = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
   return { bill, offers: offersResult, engagement };
 }
