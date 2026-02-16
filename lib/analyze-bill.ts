@@ -1,18 +1,16 @@
 // lib/analyze-bill.ts
 //
-// ✅ PDF multi-pages + OCR réel via GPT Vision
-// - Si PDF contient du texte -> parsing texte (rapide)
-// - Si PDF scanné / texte vide -> rendu pages en images -> GPT Vision (OCR)
-// - Compatible Next.js runtime=nodejs
+// ✅ PDF multi-pages + OCR via GPT Vision (sans canvas, compatible Vercel/Turbopack)
+// - Image: GPT Vision direct
+// - PDF avec texte: extraction texte via pdfjs -> GPT
+// - PDF scanné (texte vide): envoi du PDF en base64 à GPT Vision
 //
-// Dépendances à installer:
+// Dépendances:
+//   npm i pdfjs-dist
 //
-// npm i pdfjs-dist
-// npm i @napi-rs/canvas
-//
-// Notes:
-// - @napi-rs/canvas est recommandé sur Vercel (binaire précompilé, moins de galères que node-canvas)
-
+// Important:
+// - runtime côté API = nodejs (pas edge)
+// - pas de @napi-rs/canvas
 
 import OpenAI from "openai";
 import offers from "../data/offers.json";
@@ -54,7 +52,7 @@ export interface ExtractedBill {
 
   // Debug UX (optionnel)
   extraction_mode?: "pdf_text" | "pdf_vision" | "image_vision";
-  pdf_pages_used?: number;
+  pdf_pages?: number;
   pdf_text_length?: number;
   pdf_text_empty?: boolean;
 }
@@ -180,7 +178,7 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   PDF: extract text via pdfjs
+   PDF: extract text via pdfjs (multi-pages)
    ────────────────────────────────────────────── */
 async function extractPdfTextPdfjs(fileBuffer: Buffer): Promise<{ text: string; numPages: number }> {
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -200,56 +198,6 @@ async function extractPdfTextPdfjs(fileBuffer: Buffer): Promise<{ text: string; 
   }
 
   return { text: pages.join("\n\n").trim(), numPages: pdf.numPages };
-}
-
-/* ──────────────────────────────────────────────
-   PDF: render pages to PNG (for GPT Vision OCR)
-   ────────────────────────────────────────────── */
-async function renderPdfPagesToPngDataUrls(
-  fileBuffer: Buffer,
-  opts?: { maxPages?: number; scale?: number }
-): Promise<{ dataUrls: string[]; numPages: number; pagesUsed: number[] }> {
-  const maxPages = opts?.maxPages ?? 6;
-  const scale = opts?.scale ?? 2.0;
-
-  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const canvasMod: any = await import("@napi-rs/canvas");
-  const { createCanvas } = canvasMod;
-
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
-  const pdf = await loadingTask.promise;
-
-  // Si gros PDF: on prend un subset (début + fin) pour limiter coûts
-  const total = pdf.numPages;
-  const pagesToUse: number[] = (() => {
-    if (total <= maxPages) return Array.from({ length: total }, (_, i) => i + 1);
-
-    // Exemple: maxPages=6 -> 1,2,3 + last-2,last-1,last
-    const headCount = Math.ceil(maxPages / 2);
-    const tailCount = maxPages - headCount;
-
-    const head = Array.from({ length: headCount }, (_, i) => i + 1);
-    const tail = Array.from({ length: tailCount }, (_, i) => total - tailCount + 1 + i);
-    const merged = [...head, ...tail].filter((v, idx, arr) => arr.indexOf(v) === idx);
-    return merged.slice(0, maxPages);
-  })();
-
-  const dataUrls: string[] = [];
-  for (const pageNo of pagesToUse) {
-    const page = await pdf.getPage(pageNo);
-    const viewport = page.getViewport({ scale });
-
-    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-    const ctx = canvas.getContext("2d");
-
-    await page.render({ canvasContext: ctx as any, viewport }).promise;
-
-    const png = canvas.toBuffer("image/png");
-    const base64 = png.toString("base64");
-    dataUrls.push(`data:image/png;base64,${base64}`);
-  }
-
-  return { dataUrls, numPages: total, pagesUsed: pagesToUse };
 }
 
 /* ──────────────────────────────────────────────
@@ -292,7 +240,6 @@ function parseGPTResponse(raw: string): ExtractedBill {
     confidence: "insufficient",
     missing_fields: [],
     needs_full_annual_invoice: true,
-    extraction_mode: undefined,
   };
 
   return validateExtraction(bill);
@@ -305,47 +252,37 @@ export async function extractBillData(fileBuffer: Buffer, mimeType: string): Pro
   const openai = getOpenAI();
   if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
 
-  // 1) Image -> direct Vision
+  // 1) Image -> GPT Vision direct
   if (isImageMime(mimeType)) {
- // Fallback: envoyer le PDF entier à GPT Vision
-const base64 = fileBuffer.toString("base64");
+    const base64 = fileBuffer.toString("base64");
 
-const visionParts = [
-  {
-    type: "text" as const,
-    text:
-      `${EXTRACTION_PROMPT}\n\n` +
-      `Le document ci-dessous est un PDF. Lis toutes les pages et extrais les champs demandés.`,
-  },
-  {
-    type: "image_url" as const,
-    image_url: {
-      url: `data:application/pdf;base64,${base64}`,
-      detail: "high" as const,
-    },
-  },
-];
+    const content = [
+      { type: "text" as const, text: EXTRACTION_PROMPT },
+      {
+        type: "image_url" as const,
+        image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" as const },
+      },
+    ];
 
-const res = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: [{ role: "user", content: visionParts }],
-  max_tokens: 1400,
-  temperature: 0.1,
-});
-
+    const res = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content }],
+      max_tokens: 1400,
+      temperature: 0.1,
+    });
 
     const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
     bill.extraction_mode = "image_vision";
     return bill;
   }
 
-  // 2) PDF -> try text first, fallback Vision OCR
+  // 2) PDF -> texte d'abord, sinon Vision direct sur le PDF
   if (isPdfMime(mimeType)) {
     const { text, numPages } = await extractPdfTextPdfjs(fileBuffer);
     const pdfText = (text || "").trim();
     const textLen = pdfText.length;
 
-    // Si texte exploitable -> parsing texte
+    // Cas 1: PDF avec texte natif
     if (textLen >= 200) {
       const MAX = 24000;
       let payloadText = pdfText;
@@ -355,9 +292,9 @@ const res = await openai.chat.completions.create({
         payloadText = `${head}\n\n[...] (TRONQUE)\n\n${tail}`;
       }
 
-      const content: OpenAI.Chat.ChatCompletionContentPart[] = [
+      const content = [
         {
-          type: "text",
+          type: "text" as const,
           text:
             `${EXTRACTION_PROMPT}\n\n` +
             `META: PDF ${numPages} pages.\n\n` +
@@ -375,42 +312,37 @@ const res = await openai.chat.completions.create({
 
       const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
       bill.extraction_mode = "pdf_text";
+      bill.pdf_pages = numPages;
       bill.pdf_text_length = textLen;
       return bill;
     }
 
-    // Sinon -> PDF scanne -> Vision OCR multi-pages
-    const { dataUrls, pagesUsed } = await renderPdfPagesToPngDataUrls(fileBuffer, {
-      maxPages: 6,
-      scale: 2.0,
-    });
+    // Cas 2: PDF scanné / texte vide -> GPT Vision direct (PDF base64)
+    const base64 = fileBuffer.toString("base64");
 
-    if (!dataUrls.length) {
-      throw new Error("PDF_TEXT_EMPTY");
-    }
-
-const visionParts = [
-  {
-    type: "text" as const,
-    text: `${EXTRACTION_PROMPT}\n\nMETA: ...`,
-  },
-  ...dataUrls.map((url) => ({
-    type: "image_url" as const,
-    image_url: { url, detail: "high" as const },
-  })),
-];
-
+    const content = [
+      {
+        type: "text" as const,
+        text:
+          `${EXTRACTION_PROMPT}\n\n` +
+          `Le document ci-dessous est un PDF. Lis toutes les pages et extrais les champs demandés.`,
+      },
+      {
+        type: "image_url" as const,
+        image_url: { url: `data:application/pdf;base64,${base64}`, detail: "high" as const },
+      },
+    ];
 
     const res = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: visionParts }],
+      messages: [{ role: "user", content }],
       max_tokens: 1400,
       temperature: 0.1,
     });
 
     const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
     bill.extraction_mode = "pdf_vision";
-    bill.pdf_pages_used = pagesUsed.length;
+    bill.pdf_pages = numPages;
     bill.pdf_text_length = textLen;
     bill.pdf_text_empty = true;
     return bill;
@@ -466,12 +398,7 @@ export async function analyzeBill(
   engagement: string
 ): Promise<AnalysisResult> {
   const bill = await extractBillData(fileBuffer, mimeType);
-
   const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
 
-  return {
-    bill,
-    offers: offerResults,
-    engagement,
-  };
+  return { bill, offers: offerResults, engagement };
 }
