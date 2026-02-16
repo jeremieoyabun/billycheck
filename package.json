@@ -10,10 +10,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.92",
     "@prisma/client": "^6.19.2",
     "next": "16.1.6",
     "openai": "^6.21.0",
-    "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.624",
     "prisma": "^6.19.2",
     "react": "19.2.3",
@@ -23,7 +23,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.24",

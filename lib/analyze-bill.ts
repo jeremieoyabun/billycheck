@@ -1,3 +1,19 @@
+// lib/analyze-bill.ts
+//
+// ✅ PDF multi-pages + OCR réel via GPT Vision
+// - Si PDF contient du texte -> parsing texte (rapide)
+// - Si PDF scanné / texte vide -> rendu pages en images -> GPT Vision (OCR)
+// - Compatible Next.js runtime=nodejs
+//
+// Dépendances à installer:
+//
+// npm i pdfjs-dist
+// npm i @napi-rs/canvas
+//
+// Notes:
+// - @napi-rs/canvas est recommandé sur Vercel (binaire précompilé, moins de galères que node-canvas)
+// - Si tu utilises déjà pdf-parse, tu peux le garder, mais ici on fait tout avec pdfjs pour être cohérent
+
 import OpenAI from "openai";
 import offers from "../data/offers.json";
 
@@ -22,22 +38,25 @@ export interface ExtractedBill {
   meter_type: string | null;
   billing_period: string | null;
 
-  // 4 valeurs indispensables (annuelles)
-  energy_unit_price_eur_kwh: number | null;      // TTC (moyenne pondérée si HP/HC)
-  consumption_kwh_annual: number | null;         // kWh/an
-  subscription_annual_ht_eur: number | null;     // €/an HT
-  total_annual_ttc_eur: number | null;           // €/an TTC
+  energy_unit_price_eur_kwh: number | null; // TTC
+  consumption_kwh_annual: number | null; // kWh/an
+  subscription_annual_ht_eur: number | null; // €/an HT (fournisseur uniquement)
+  total_annual_ttc_eur: number | null; // €/an TTC
 
-  // Détails HP/HC (si trouvés)
   hp_unit_price_eur_kwh: number | null;
   hc_unit_price_eur_kwh: number | null;
   hp_consumption_kwh: number | null;
   hc_consumption_kwh: number | null;
 
-  // Qualité extraction
   confidence: ExtractionConfidence;
   missing_fields: string[];
   needs_full_annual_invoice: boolean;
+
+  // Debug UX (optionnel)
+  extraction_mode?: "pdf_text" | "pdf_vision" | "image_vision";
+  pdf_pages_used?: number;
+  pdf_text_length?: number;
+  pdf_text_empty?: boolean;
 }
 
 export interface OfferResult {
@@ -58,7 +77,7 @@ export interface AnalysisResult {
 }
 
 /* ──────────────────────────────────────────────
-   Extraction prompt (STRICT)
+   Prompt (STRICT)
    ────────────────────────────────────────────── */
 const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité belges.
 Analyse la facture et réponds UNIQUEMENT avec un objet JSON valide (sans backticks, sans texte).
@@ -71,23 +90,17 @@ Objectif: extraire 4 valeurs indispensables pour comparer des offres:
 
 Règles STRICTES:
 - N'invente jamais.
-- IMPORTANT "abonnement_annual_ht_eur" :
+- IMPORTANT "subscription_annual_ht_eur":
   Ce champ correspond UNIQUEMENT à la redevance fixe du FOURNISSEUR (abonnement/fee fournisseur).
   N’inclus JAMAIS : distribution, transport, terme fixe réseau, redevances de raccordement, taxes, prosumer, énergie renouvelable, contributions, ou tout autre poste non-fournisseur.
   Si la facture ne donne pas clairement un TOTAL ANNUEL de cette redevance fournisseur, mets null.
-  Si tu vois une redevance fixe sur plusieurs périodes (ex: 2 lignes "redevance fixe"), additionne ces lignes seulement si elles sont clairement des redevances fournisseur.
+  Si tu vois une redevance fixe sur plusieurs périodes, additionne seulement si ce sont clairement des redevances fournisseur.
   Ne transforme jamais un montant mensuel en annuel.
-  - Indices pour reconnaître l’abonnement fournisseur :
-  ✅ mots-clés autorisés: "redevance fixe", "abonnement", "fee", "frais fixe fournisseur"
-  ❌ mots-clés interdits: "distribution", "transport", "terme fixe", "prosumer", "raccordement", "taxe", "accise", "TVA", "énergie renouvelable", "contribution"
-  Si un montant est associé à un mot-clé interdit, il ne peut PAS aller dans subscription_annual_ht_eur.
-- Ne fais PAS d'extrapolation automatique (ne multiplie pas par 12 une conso mensuelle).
+  Indices autorisés: "redevance fixe", "abonnement", "fee", "frais fixe fournisseur"
+  Indices interdits: "distribution", "transport", "terme fixe", "prosumer", "raccordement", "taxe", "accise", "TVA", "énergie renouvelable", "contribution"
+- Ne fais PAS d'extrapolation automatique.
 - Si une valeur n'est pas clairement visible, mets null.
-- Si le contrat est bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
-- Si tu ne peux pas obtenir les 4 valeurs, mets null sur ce qui manque.
-- "subscription_source_label" = recopie exacte du libellé de ligne utilisé pour l'abonnement (ex: "Redevance fixe").
-- Si subscription_annual_ht_eur est null, subscription_source_label doit être null.
-
+- Si bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
 
 Schéma EXACT:
 
@@ -97,7 +110,7 @@ Schéma EXACT:
   "postal_code": string|null,
   "meter_type": string|null,
   "billing_period": string|null,
-  "subscription_source_label": string|null
+  "subscription_source_label": string|null,
 
   "energy_unit_price_eur_kwh": number|null,
   "consumption_kwh_annual": number|null,
@@ -122,41 +135,14 @@ function isPdfMime(mimeType: string) {
   return mimeType === "application/pdf";
 }
 
-async function extractPdfText(fileBuffer: Buffer): Promise<{ text: string; numPages: number }> {
-  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
-  const pdf = await loadingTask.promise;
-
-  const pages: string[] = [];
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-
-    const pageText = (content.items || [])
-      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
-      .filter(Boolean)
-      .join(" ");
-
-    pages.push(`[PAGE ${i}]\n${pageText}`);
-  }
-
-  const text = pages.join("\n\n").trim();
-  return { text, numPages: pdf.numPages };
-}
-
-
 function numOrNull(v: any): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
-
 function round4(n: number) {
   return Math.round(n * 10000) / 10000;
 }
-
 function computeWeightedPrice(
   hpPrice: number | null,
   hcPrice: number | null,
@@ -169,67 +155,6 @@ function computeWeightedPrice(
   const weighted = (hpPrice * hpKwh + hcPrice * hcKwh) / total;
   return Number.isFinite(weighted) ? round4(weighted) : null;
 }
-function parseFRDate(d: string): Date | null {
-  // "21-12-2024"
-  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d.trim());
-  if (!m) return null;
-  const day = Number(m[1]);
-  const month = Number(m[2]);
-  const year = Number(m[3]);
-  if (!day || !month || !year) return null;
-  const dt = new Date(Date.UTC(year, month - 1, day));
-  return Number.isFinite(dt.getTime()) ? dt : null;
-}
-
-function billingPeriodLooksAnnual(period: string | null): boolean {
-  if (!period) return false;
-  // attendu: "21-12-2024 au 09-12-2025"
-  const parts = period.split("au").map((s) => s.trim());
-  if (parts.length !== 2) return false;
-  const a = parseFRDate(parts[0]);
-  const b = parseFRDate(parts[1]);
-  if (!a || !b) return false;
-  const days = Math.abs((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-  return days >= 300; // ~10 mois -> on considère annuel
-}
-
-function maybeAnnualizeSubscription(bill: ExtractedBill): ExtractedBill {
-  const sub = bill.subscription_annual_ht_eur;
-  if (sub == null) return bill;
-
-  // Si c'est déjà clairement annuel (>= 60€), on touche pas
-  if (sub >= 60) return bill;
-
-  // Heuristique "quasi certain que c'est mensuel"
-  // 1) Période annuelle + 2) abonnement très bas (<= 35€)
-  const looksAnnual = billingPeriodLooksAnnual(bill.billing_period);
-  if (!looksAnnual || sub > 35) return bill;
-
-  // Check de cohérence via le total annuel si dispo
-  // total - (prix*kwh) doit être largement > sub si sub était mensuel
-  const total = bill.total_annual_ttc_eur;
-  const kwh = bill.consumption_kwh_annual;
-  const p = bill.energy_unit_price_eur_kwh;
-
-  if (total != null && kwh != null && p != null) {
-    const energy = kwh * p;
-    const remainder = total - energy;
-
-    // si le "reste" dépasse déjà fortement le sub, c’est suspect
-    // (on met un seuil conservateur)
-    if (remainder > sub * 4) {
-      return { ...bill, subscription_annual_ht_eur: sub * 12 };
-    }
-
-    // sinon on ne touche pas
-    return bill;
-  }
-
-  // Sans total/kwh/prix, on reste conservateur: on annualise quand même,
-  // car période annuelle + sub très bas est déjà très fort comme signal.
-  return { ...bill, subscription_annual_ht_eur: sub * 12 };
-}
-
 
 function validateExtraction(bill: ExtractedBill): ExtractedBill {
   const missing: string[] = [];
@@ -255,77 +180,81 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
 }
 
 /* ──────────────────────────────────────────────
-   Extract bill data
+   PDF: extract text via pdfjs
    ────────────────────────────────────────────── */
-export async function extractBillData(
+async function extractPdfTextPdfjs(fileBuffer: Buffer): Promise<{ text: string; numPages: number }> {
+  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
+  const pdf = await loadingTask.promise;
+
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = (content.items || [])
+      .map((it: any) => (typeof it.str === "string" ? it.str : ""))
+      .filter(Boolean)
+      .join(" ");
+    pages.push(`[PAGE ${i}]\n${pageText}`);
+  }
+
+  return { text: pages.join("\n\n").trim(), numPages: pdf.numPages };
+}
+
+/* ──────────────────────────────────────────────
+   PDF: render pages to PNG (for GPT Vision OCR)
+   ────────────────────────────────────────────── */
+async function renderPdfPagesToPngDataUrls(
   fileBuffer: Buffer,
-  mimeType: string
-): Promise<ExtractedBill> {
-  const openai = getOpenAI();
-  if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
+  opts?: { maxPages?: number; scale?: number }
+): Promise<{ dataUrls: string[]; numPages: number; pagesUsed: number[] }> {
+  const maxPages = opts?.maxPages ?? 6;
+  const scale = opts?.scale ?? 2.0;
 
-  const base64 = fileBuffer.toString("base64");
+  const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const canvasMod: any = await import("@napi-rs/canvas");
+  const { createCanvas } = canvasMod;
 
-  if (isImageMime(mimeType)) {
-    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-      { type: "text", text: EXTRACTION_PROMPT },
-      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" } },
-    ];
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(fileBuffer) });
+  const pdf = await loadingTask.promise;
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content }],
-      max_tokens: 1400,
-      temperature: 0.1,
-    });
+  // Si gros PDF: on prend un subset (début + fin) pour limiter coûts
+  const total = pdf.numPages;
+  const pagesToUse: number[] = (() => {
+    if (total <= maxPages) return Array.from({ length: total }, (_, i) => i + 1);
 
-    return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+    // Exemple: maxPages=6 -> 1,2,3 + last-2,last-1,last
+    const headCount = Math.ceil(maxPages / 2);
+    const tailCount = maxPages - headCount;
+
+    const head = Array.from({ length: headCount }, (_, i) => i + 1);
+    const tail = Array.from({ length: tailCount }, (_, i) => total - tailCount + 1 + i);
+    const merged = [...head, ...tail].filter((v, idx, arr) => arr.indexOf(v) === idx);
+    return merged.slice(0, maxPages);
+  })();
+
+  const dataUrls: string[] = [];
+  for (const pageNo of pagesToUse) {
+    const page = await pdf.getPage(pageNo);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    const ctx = canvas.getContext("2d");
+
+    await page.render({ canvasContext: ctx as any, viewport }).promise;
+
+    const png = canvas.toBuffer("image/png");
+    const base64 = png.toString("base64");
+    dataUrls.push(`data:image/png;base64,${base64}`);
   }
 
-  if (isPdfMime(mimeType)) {
-  const { text, numPages } = await extractPdfText(fileBuffer);
-  const pdfText = text.trim();
-
-  if (pdfText.length < 200) {
-    // on marque explicitement un PDF sans texte exploitable
-    // plutôt que "PDF_NO_TEXT" générique
-    throw new Error("PDF_TEXT_EMPTY");
-  }
-
-  const MAX = 24000; // un peu plus large
-  let payloadText = pdfText;
-
-  if (pdfText.length > MAX) {
-    const head = pdfText.slice(0, 14000);
-    const tail = pdfText.slice(-8000);
-    payloadText = `${head}\n\n[...] (TRONQUÉ)\n\n${tail}`;
-  }
-
-  const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-    {
-      type: "text",
-      text:
-        `${EXTRACTION_PROMPT}\n\n` +
-        `META: PDF ${numPages} pages.\n\n` +
-        `--- CONTENU DE LA FACTURE (multi-pages) ---\n\n` +
-        payloadText,
-    },
-  ];
-
-  const res = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content }],
-    max_tokens: 1400,
-    temperature: 0.1,
-  });
-
-  return parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+  return { dataUrls, numPages: total, pagesUsed: pagesToUse };
 }
 
-
-  throw new Error("UNSUPPORTED_MIME_TYPE");
-}
-
+/* ──────────────────────────────────────────────
+   GPT parsing
+   ────────────────────────────────────────────── */
 function parseGPTResponse(raw: string): ExtractedBill {
   const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
@@ -363,19 +292,134 @@ function parseGPTResponse(raw: string): ExtractedBill {
     confidence: "insufficient",
     missing_fields: [],
     needs_full_annual_invoice: true,
+    extraction_mode: undefined,
   };
 
   return validateExtraction(bill);
 }
 
 /* ──────────────────────────────────────────────
-   Compare with market offers & calculate savings
+   Core: extract bill data (image + pdf)
+   ────────────────────────────────────────────── */
+export async function extractBillData(fileBuffer: Buffer, mimeType: string): Promise<ExtractedBill> {
+  const openai = getOpenAI();
+  if (!openai) throw new Error("OPENAI_API_KEY_MISSING");
+
+  // 1) Image -> direct Vision
+  if (isImageMime(mimeType)) {
+    const base64 = fileBuffer.toString("base64");
+
+const content = [
+  { type: "text" as const, text: EXTRACTION_PROMPT },
+  {
+    type: "image_url" as const,
+    image_url: {
+      url: `data:${mimeType};base64,${base64}`,
+      detail: "high" as const,
+    },
+  },
+];
+
+
+const res = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content }],
+  max_tokens: 1400,
+  temperature: 0.1,
+});
+
+    const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+    bill.extraction_mode = "image_vision";
+    return bill;
+  }
+
+  // 2) PDF -> try text first, fallback Vision OCR
+  if (isPdfMime(mimeType)) {
+    const { text, numPages } = await extractPdfTextPdfjs(fileBuffer);
+    const pdfText = (text || "").trim();
+    const textLen = pdfText.length;
+
+    // Si texte exploitable -> parsing texte
+    if (textLen >= 200) {
+      const MAX = 24000;
+      let payloadText = pdfText;
+      if (payloadText.length > MAX) {
+        const head = payloadText.slice(0, 14000);
+        const tail = payloadText.slice(-8000);
+        payloadText = `${head}\n\n[...] (TRONQUE)\n\n${tail}`;
+      }
+
+      const content: OpenAI.Chat.ChatCompletionContentPart[] = [
+        {
+          type: "text",
+          text:
+            `${EXTRACTION_PROMPT}\n\n` +
+            `META: PDF ${numPages} pages.\n\n` +
+            `--- CONTENU FACTURE (TEXTE) ---\n\n` +
+            payloadText,
+        },
+      ];
+
+      const res = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content }],
+        max_tokens: 1400,
+        temperature: 0.1,
+      });
+
+      const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+      bill.extraction_mode = "pdf_text";
+      bill.pdf_text_length = textLen;
+      return bill;
+    }
+
+    // Sinon -> PDF scanne -> Vision OCR multi-pages
+    const { dataUrls, pagesUsed } = await renderPdfPagesToPngDataUrls(fileBuffer, {
+      maxPages: 6,
+      scale: 2.0,
+    });
+
+    if (!dataUrls.length) {
+      throw new Error("PDF_TEXT_EMPTY");
+    }
+
+const visionParts = [
+  {
+    type: "text" as const,
+    text: `${EXTRACTION_PROMPT}\n\nMETA: ...`,
+  },
+  ...dataUrls.map((url) => ({
+    type: "image_url" as const,
+    image_url: { url, detail: "high" as const },
+  })),
+];
+
+
+    const res = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: visionParts }],
+      max_tokens: 1400,
+      temperature: 0.1,
+    });
+
+    const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
+    bill.extraction_mode = "pdf_vision";
+    bill.pdf_pages_used = pagesUsed.length;
+    bill.pdf_text_length = textLen;
+    bill.pdf_text_empty = true;
+    return bill;
+  }
+
+  throw new Error("UNSUPPORTED_MIME_TYPE");
+}
+
+/* ──────────────────────────────────────────────
+   Compare offers
    ────────────────────────────────────────────── */
 export function compareOffers(bill: ExtractedBill, engagement: string): OfferResult[] {
   const annualKwh = bill.consumption_kwh_annual;
   if (!annualKwh || annualKwh <= 0) return [];
 
-  // On compare sur le total annuel TTC si dispo (meilleur signal)
   const currentAnnualCost = bill.total_annual_ttc_eur;
   if (currentAnnualCost == null || currentAnnualCost <= 0) return [];
 
@@ -408,36 +452,16 @@ export function compareOffers(bill: ExtractedBill, engagement: string): OfferRes
 }
 
 /* ──────────────────────────────────────────────
-   Full analysis pipeline
+   Pipeline
    ────────────────────────────────────────────── */
 export async function analyzeBill(
   fileBuffer: Buffer,
   mimeType: string,
   engagement: string
 ): Promise<AnalysisResult> {
-  let bill = await extractBillData(fileBuffer, mimeType);
-
-  // ✅ Normalisation abonnement: si mensuel détecté, on le repasse en annuel
-  bill = maybeAnnualizeSubscription(bill);
-
-  // IMPORTANT: on recalcule missing/confidence/needs après mutation
-  bill = validateExtraction(bill);
+  const bill = await extractBillData(fileBuffer, mimeType);
 
   const offerResults = bill.needs_full_annual_invoice ? [] : compareOffers(bill, engagement);
-
-  const requiredOk =
-    bill?.energy_unit_price_eur_kwh != null &&
-    bill?.consumption_kwh_annual != null &&
-    bill?.subscription_annual_ht_eur != null &&
-    bill?.total_annual_ttc_eur != null;
-
-  if (bill?.needs_full_annual_invoice) {
-    bill.confidence = "insufficient";
-  } else if (requiredOk) {
-    bill.confidence = "ok";
-  } else {
-    bill.confidence = "partial";
-  }
 
   return {
     bill,
@@ -445,4 +469,3 @@ export async function analyzeBill(
     engagement,
   };
 }
-
