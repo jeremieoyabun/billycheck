@@ -48,3 +48,6 @@ next-env.d.ts
 app/mnt/
 src/app/mnt/
 mnt/
+
+.vercel
+.env*.local
