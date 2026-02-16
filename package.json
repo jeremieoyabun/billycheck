@@ -10,7 +10,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.92",
     "@prisma/client": "^6.19.2",
     "next": "16.1.6",
     "openai": "^6.21.0",

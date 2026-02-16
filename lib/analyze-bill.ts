@@ -12,7 +12,7 @@
 //
 // Notes:
 // - @napi-rs/canvas est recommandé sur Vercel (binaire précompilé, moins de galères que node-canvas)
-// - Si tu utilises déjà pdf-parse, tu peux le garder, mais ici on fait tout avec pdfjs pour être cohérent
+
 
 import OpenAI from "openai";
 import offers from "../data/offers.json";
@@ -307,26 +307,32 @@ export async function extractBillData(fileBuffer: Buffer, mimeType: string): Pro
 
   // 1) Image -> direct Vision
   if (isImageMime(mimeType)) {
-    const base64 = fileBuffer.toString("base64");
+ // Fallback: envoyer le PDF entier à GPT Vision
+const base64 = fileBuffer.toString("base64");
 
-const content = [
-  { type: "text" as const, text: EXTRACTION_PROMPT },
+const visionParts = [
+  {
+    type: "text" as const,
+    text:
+      `${EXTRACTION_PROMPT}\n\n` +
+      `Le document ci-dessous est un PDF. Lis toutes les pages et extrais les champs demandés.`,
+  },
   {
     type: "image_url" as const,
     image_url: {
-      url: `data:${mimeType};base64,${base64}`,
+      url: `data:application/pdf;base64,${base64}`,
       detail: "high" as const,
     },
   },
 ];
 
-
 const res = await openai.chat.completions.create({
   model: "gpt-4o",
-  messages: [{ role: "user", content }],
+  messages: [{ role: "user", content: visionParts }],
   max_tokens: 1400,
   temperature: 0.1,
 });
+
 
     const bill = parseGPTResponse(res.choices[0]?.message?.content ?? "{}");
     bill.extraction_mode = "image_vision";
