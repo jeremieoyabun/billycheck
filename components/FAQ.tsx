@@ -16,10 +16,6 @@ const FAQS = [
     a: "Les économies dépendent du contrat actuel, de la consommation et des offres disponibles. Certaines personnes ne trouvent aucune différence, d’autres peuvent réduire leur facture annuelle de plusieurs dizaines voire centaines d’euros. Billy fournit une estimation basée sur les données de la facture et les tarifs publics, sans garantie de montant exact.",
   },
   {
-    q: "Comment Billy gagne de l’argent ?",
-    a: "Si un changement de fournisseur est effectué via un lien partenaire, le fournisseur peut verser une commission à Billy. Cela ne modifie pas le prix de l’offre pour le client. Le tarif est identique à celui proposé directement par le fournisseur.",
-  },
-  {
     q: "Les résultats sont-ils fiables ?",
     a: "Les estimations sont calculées à partir des données extraites de la facture et des grilles tarifaires publiques des fournisseurs. Il s’agit d’indications comparatives. Le montant réel peut varier selon les conditions contractuelles et l’évolution des tarifs.",
   },

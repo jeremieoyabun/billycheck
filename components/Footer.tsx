@@ -21,6 +21,9 @@ export function Footer() {
           <Link href="/mentions-legales" className="hover:text-slate-900 transition">
             Mentions légales
           </Link>
+          <Link href="/faq" className="hover:text-slate-900 transition">
+            FAQ
+          </Link>
           <a href="mailto:contact@billycheck.com" className="hover:text-slate-900 transition">
             contact@billycheck.com
           </a>
