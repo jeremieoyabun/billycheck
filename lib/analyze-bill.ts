@@ -14,7 +14,7 @@
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
 
-const ANALYZE_VERSION = "ANALYZE-V8-2026-02-17";
+const ANALYZE_VERSION = "ANALYZE-V9-2026-02-17";
 
 /* ──────────────────────────────────────────────
    OpenAI client
@@ -36,6 +36,9 @@ export interface ExtractedBill {
   postal_code: string | null;
   meter_type: string | null;
   billing_period: string | null;
+  billing_period_start: string | null;
+  billing_period_end: string | null;
+  billing_period_days: number | null;
   country: string | null;
 
   energy_unit_price_eur_kwh: number | null;
@@ -52,6 +55,7 @@ export interface ExtractedBill {
   confidence: ExtractionConfidence;
   missing_fields: string[];
   needs_full_annual_invoice: boolean;
+  is_monthly_bill?: boolean;
 
   extraction_mode?: "image_vision" | "pdf_text";
   pdf_text_length?: number;
@@ -113,9 +117,15 @@ IMPORTANT — CHAMPS CRITIQUES:
 
 5) "consumption_kwh_annual":
    Consommation totale (jour + nuit, HP + HC) en kWh sur la période de la facture.
+   ⚠️ Retourne la consommation EXACTE de la période, ne l'annualise PAS.
 
 6) "country": Déduis le pays depuis l'adresse, le code postal ou le fournisseur: "BE", "FR", "LU", etc.
    Indices: code postal 4 chiffres = BE, 5 chiffres = FR. Fournisseurs BE: Mega, Luminus, Eneco, Octa+. Fournisseurs FR: EDF, Engie (FR), TotalEnergies (FR).
+
+7) "billing_period_start" et "billing_period_end":
+   Dates de début et fin de la période de facturation, au format "YYYY-MM-DD".
+   Exemples: "2024-12-21", "2025-12-09".
+   Cherche "Période de facturation", "du ... au ...", "Période de consommation".
 
 Schéma EXACT:
 {
@@ -124,6 +134,8 @@ Schéma EXACT:
   "postal_code": string|null,
   "meter_type": string|null,
   "billing_period": string|null,
+  "billing_period_start": string|null,
+  "billing_period_end": string|null,
   "country": string|null,
 
   "energy_unit_price_eur_kwh": number|null,
@@ -161,6 +173,18 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function computePeriodDays(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
+  const d0 = new Date(start);
+  const d1 = new Date(end);
+  if (isNaN(d0.getTime()) || isNaN(d1.getTime())) return null;
+  const diffMs = d1.getTime() - d0.getTime();
+  const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  return days > 0 ? days : null;
+}
+
+const MIN_ANNUAL_PERIOD_DAYS = 300;
+
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
@@ -197,11 +221,16 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
     if (secondaryMissing > 0) confidence = "partial";
   }
 
+  // Monthly/short-period bills always need a full annual invoice
+  const isMonthly = bill.is_monthly_bill === true;
+  const needsAnnual = isMonthly || confidence === "insufficient";
+
   return {
     ...bill,
-    missing_fields: missing,
-    confidence,
-    needs_full_annual_invoice: confidence === "insufficient",
+    missing_fields: isMonthly ? [...missing, "facture_annuelle_requise"] : missing,
+    confidence: isMonthly ? "insufficient" : confidence,
+    needs_full_annual_invoice: needsAnnual,
+    is_monthly_bill: isMonthly,
   };
 }
 
@@ -248,12 +277,25 @@ function parseGPTResponse(raw: string): ExtractedBill {
     }
   }
 
+  // Period dates & duration
+  const periodStart = (data.billing_period_start as string) ?? null;
+  const periodEnd = (data.billing_period_end as string) ?? null;
+  const periodDays = computePeriodDays(periodStart, periodEnd);
+  const isMonthly = periodDays != null && periodDays < MIN_ANNUAL_PERIOD_DAYS;
+
+  if (isMonthly) {
+    console.log(`[analyze] MONTHLY BILL detected: ${periodDays} days (${periodStart} → ${periodEnd}). Need annual invoice.`);
+  }
+
   const bill: ExtractedBill = {
     provider: (data.provider as string) ?? null,
     plan_name: (data.plan_name as string) ?? null,
     postal_code: (data.postal_code as string) ?? null,
     meter_type: (data.meter_type as string) ?? null,
     billing_period: (data.billing_period as string) ?? null,
+    billing_period_start: periodStart,
+    billing_period_end: periodEnd,
+    billing_period_days: periodDays,
     country,
 
     energy_unit_price_eur_kwh: weighted ?? numOrNull(data.energy_unit_price_eur_kwh),
@@ -270,6 +312,7 @@ function parseGPTResponse(raw: string): ExtractedBill {
     confidence: "insufficient",
     missing_fields: [],
     needs_full_annual_invoice: true,
+    is_monthly_bill: isMonthly,
   };
 
   return validateExtraction(bill);

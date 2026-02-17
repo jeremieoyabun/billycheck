@@ -27,9 +27,14 @@ export interface ExtractedBill {
   hp_consumption_kwh?: number | null;
   hc_consumption_kwh?: number | null;
 
+  billing_period_start?: string | null;
+  billing_period_end?: string | null;
+  billing_period_days?: number | null;
+
   confidence?: "ok" | "partial" | "insufficient";
   missing_fields?: string[];
   needs_full_annual_invoice?: boolean;
+  is_monthly_bill?: boolean;
 
   // Legacy fallback
   total_amount_eur?: number | null;
@@ -179,13 +184,26 @@ export function ResultCards({ data }: ResultCardsProps) {
 
       {/* Billy chat */}
       <div className="flex flex-col gap-2.5">
-        {bill.needs_full_annual_invoice ? (
+        {bill.is_monthly_bill ? (
+          <>
+            <ChatBubble>
+              <strong>Oups, c'est une facture mensuelle !</strong> 📄
+            </ChatBubble>
+            <ChatBubble delay={300}>
+              Ta facture ne couvre que{" "}
+              <strong>{bill.billing_period_days ?? "quelques"} jours</strong>
+              {bill.billing_period ? ` (${bill.billing_period})` : ""}.
+              Pour comparer les offres, j'ai besoin d'une <strong>facture annuelle de régularisation</strong> (sur 12 mois)
+              avec le détail des coûts sur l'année complète.
+            </ChatBubble>
+          </>
+        ) : bill.needs_full_annual_invoice ? (
           <>
             <ChatBubble>
               <strong>Il me manque ta facture annuelle complète.</strong> 📄
             </ChatBubble>
             <ChatBubble delay={300}>
-              Pour comparer précisément, j’ai besoin des 4 données annuelles: prix du kWh réellement
+              Pour comparer précisément, j'ai besoin des 4 données annuelles: prix du kWh réellement
               payé, consommation annuelle, abonnement annuel HT, total annuel TTC. Upload une facture
               de régularisation sur 12 mois (avec le détail des coûts).
             </ChatBubble>
