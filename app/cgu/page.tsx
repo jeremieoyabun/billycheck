@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "Conditions Générales d’Utilisation | BillyCheck",
   description: "Conditions Générales d’Utilisation (CGU) du service BillyCheck.",
@@ -10,14 +12,14 @@ function H({ children }: { children: React.ReactNode }) {
 export default function CGUPage() {
   const SERVICE = "BillyCheck";
   const COMPANY = "ENNAVA";
-  const CONTACT_EMAIL = "contact@billycheck.com"; // TODO: remplace par ton email réel
+  const CONTACT_EMAIL = "contact@billycheck.com";
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
         Conditions Générales d’Utilisation
       </h1>
-      <p className="mt-2 text-sm text-slate-600">Dernière mise à jour: 16/02/2026</p>
+      <p className="mt-2 text-sm text-slate-600">Dernière mise à jour: 17/02/2026</p>
 
       <H>1. Objet</H>
       <p className="mt-3 text-sm leading-6 text-slate-700">
@@ -30,11 +32,29 @@ export default function CGUPage() {
         {SERVICE} permet à l’utilisateur de téléverser un document (ex: facture) afin d’en extraire certaines données
         et d’afficher des estimations, comparaisons ou résultats informatifs, incluant des offres de partenaires.
       </p>
+      <p className="mt-3 text-sm leading-6 text-slate-700">
+        Le service repose en partie sur des traitements automatisés. Les résultats peuvent contenir des erreurs,
+        approximations ou omissions.
+      </p>
 
       <H>3. Conditions d’accès</H>
       <ul className="mt-3 list-disc pl-5 text-sm leading-6 text-slate-700 space-y-2">
-        <li>L’utilisateur s’engage à fournir des informations exactes et à utiliser des documents qu’il est autorisé à partager.</li>
-        <li>L’utilisateur s’engage à ne pas perturber le service (tests abusifs, contournement, surcharge, extraction automatisée non autorisée).</li>
+        <li>
+          L’utilisateur s’engage à fournir des informations exactes et à utiliser des documents qu’il est autorisé à partager.
+        </li>
+        <li>
+          L’utilisateur garantit être titulaire des droits sur les documents téléversés ou disposer de l’autorisation nécessaire.
+          La société ne saurait être tenue responsable du contenu des documents transmis.
+        </li>
+        <li>
+          L’utilisateur s’engage à ne pas perturber le service (tests abusifs, contournement, surcharge, extraction automatisée non autorisée).
+        </li>
+        <li>
+          La société se réserve le droit de suspendre l’accès au service en cas d’usage abusif, détourné ou frauduleux.
+        </li>
+        <li>
+          La société se réserve le droit de rendre tout ou partie du service payant à l’avenir.
+        </li>
       </ul>
 
       <H>4. Aucune prestation de conseil, aucune promesse</H>
@@ -49,6 +69,10 @@ export default function CGUPage() {
         <li>
           {SERVICE} n’a aucune obligation de résultat. Les résultats peuvent varier selon la qualité du document, les formats,
           les règles tarifaires, les données disponibles, et les mises à jour des partenaires.
+        </li>
+        <li>
+          Les informations fournies ne doivent pas être interprétées comme une incitation, une recommandation personnalisée
+          ou un élément déterminant de décision, et l’utilisateur demeure seul responsable de ses choix.
         </li>
       </ul>
 
@@ -89,7 +113,11 @@ export default function CGUPage() {
 
       <H>9. Données personnelles</H>
       <p className="mt-3 text-sm leading-6 text-slate-700">
-        Le traitement des données personnelles est décrit dans la Politique de confidentialité.
+        Le traitement des données personnelles est décrit dans la{" "}
+        <Link className="underline" href="/politique-de-confidentialite">
+          Politique de confidentialité
+        </Link>
+        .
       </p>
 
       <H>10. Propriété intellectuelle</H>
@@ -102,10 +130,16 @@ export default function CGUPage() {
         {COMPANY} peut modifier les CGU à tout moment. La version applicable est celle publiée sur le site à la date d’utilisation.
       </p>
 
-      <H>12. Droit applicable et litiges</H>
+      <H>12. Droit applicable et règlement amiable des litiges</H>
       <p className="mt-3 text-sm leading-6 text-slate-700">
-        Les présentes CGU sont régies par le droit français. En cas de litige, et sauf dispositions impératives contraires,
-        les tribunaux compétents seront ceux du ressort de Paris.
+        Les présentes CGU sont régies par le droit français.
+      </p>
+      <p className="mt-3 text-sm leading-6 text-slate-700">
+        En cas de différend relatif à l’interprétation ou à l’exécution des présentes, les parties s’efforceront de rechercher
+        une solution amiable avant toute action judiciaire.
+      </p>
+      <p className="mt-3 text-sm leading-6 text-slate-700">
+        À défaut de résolution amiable, et sauf dispositions impératives contraires, les tribunaux compétents seront ceux du ressort de Paris.
       </p>
 
       <H>13. Contact</H>

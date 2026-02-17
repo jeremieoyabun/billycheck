@@ -96,7 +96,7 @@ export default function QuiSommesNousPage() {
             <div className="bg-white border border-slate-200 rounded-3xl p-3 shadow-sm">
               <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-50">
                 <Image
-                  src="/team.jpg"
+                  src="/team.webp"
                   alt="L’équipe BillyCheck"
                   fill
                   className="object-cover"
