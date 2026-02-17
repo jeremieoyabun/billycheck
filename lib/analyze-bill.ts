@@ -14,7 +14,7 @@
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
 
-const ANALYZE_VERSION = "ANALYZE-V4-2026-02-16";
+const ANALYZE_VERSION = "ANALYZE-V5-2026-02-17";
 
 /* ──────────────────────────────────────────────
    OpenAI client
@@ -259,7 +259,11 @@ async function extractPdfText(fileBuffer: Buffer): Promise<string> {
 
   console.log(`[analyze][${ANALYZE_VERSION}] extractPdfText: buffer OK, ${fileBuffer.length} bytes`);
 
-  const mod: any = await import("pdf-parse");
+  // CRITICAL: import pdf-parse/lib/pdf-parse directly to bypass index.js
+  // which contains a debug block that runs Fs.readFileSync('./test/data/...')
+  // when module.parent is undefined (always true in webpack/Vercel).
+  // @ts-ignore — no type declarations for subpath import
+  const mod: any = await import("pdf-parse/lib/pdf-parse");
   const parser = mod?.default ?? mod;
   const parsed = await parser(fileBuffer);
   return (parsed?.text ?? "").toString().trim();

@@ -10,7 +10,7 @@ import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
    Version tag — change this on every deploy
    to prove Vercel is running YOUR code
    ────────────────────────────────────────────── */
-const ROUTE_VERSION = "PROCESS-V4-2026-02-16";
+const ROUTE_VERSION = "PROCESS-V5-2026-02-17";
 
 /* ──────────────────────────────────────────────
    Helpers
