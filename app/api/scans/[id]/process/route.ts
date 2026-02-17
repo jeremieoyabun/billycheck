@@ -10,7 +10,7 @@ import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
    Version tag — change this on every deploy
    to prove Vercel is running YOUR code
    ────────────────────────────────────────────── */
-const ROUTE_VERSION = "PROCESS-V6-2026-02-17";
+const ROUTE_VERSION = "PROCESS-V8-2026-02-17";
 
 /* ──────────────────────────────────────────────
    Helpers
@@ -34,6 +34,7 @@ function normalizeBillNumbers(bill: any) {
     energy_unit_price_eur_kwh: toNumberFR(bill.energy_unit_price_eur_kwh),
     consumption_kwh_annual: toNumberFR(bill.consumption_kwh_annual),
     subscription_annual_ht_eur: toNumberFR(bill.subscription_annual_ht_eur),
+    total_annual_htva_eur: toNumberFR(bill.total_annual_htva_eur),
     total_annual_ttc_eur: toNumberFR(bill.total_annual_ttc_eur),
     hp_unit_price_eur_kwh: toNumberFR(bill.hp_unit_price_eur_kwh),
     hc_unit_price_eur_kwh: toNumberFR(bill.hc_unit_price_eur_kwh),
@@ -95,8 +96,17 @@ function inferAnnualTTC(bill: any) {
   );
   if (annualHT == null) return bill;
 
-  const vatRate = pickFirstNumber(bill.vat_rate, bill.tva_rate, bill.vat_percent) ?? 6;
-  const ttc = Math.round(annualHT * (1 + clampVatRate(vatRate) / 100) * 100) / 100;
+  const country = ((bill.country as string) ?? "").toUpperCase();
+  let ttc: number;
+
+  if (country === "FR") {
+    // France: 5.5% on subscription, 20% on the rest
+    const sub = pickFirstNumber(bill.subscription_annual_ht_eur) ?? 0;
+    ttc = Math.round((sub * 1.055 + (annualHT - sub) * 1.20) * 100) / 100;
+  } else {
+    // Belgium (default): flat 6%
+    ttc = Math.round(annualHT * 1.06 * 100) / 100;
+  }
 
   bill.total_annual_ttc_eur = ttc;
   bill.total_annual_ttc_inferred = true;

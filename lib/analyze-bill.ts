@@ -14,7 +14,7 @@
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
 
-const ANALYZE_VERSION = "ANALYZE-V6-2026-02-17";
+const ANALYZE_VERSION = "ANALYZE-V8-2026-02-17";
 
 /* ──────────────────────────────────────────────
    OpenAI client
@@ -36,10 +36,12 @@ export interface ExtractedBill {
   postal_code: string | null;
   meter_type: string | null;
   billing_period: string | null;
+  country: string | null;
 
   energy_unit_price_eur_kwh: number | null;
   consumption_kwh_annual: number | null;
   subscription_annual_ht_eur: number | null;
+  total_annual_htva_eur: number | null;
   total_annual_ttc_eur: number | null;
 
   hp_unit_price_eur_kwh: number | null;
@@ -75,40 +77,59 @@ export interface AnalysisResult {
 /* ──────────────────────────────────────────────
    Extraction prompt
    ────────────────────────────────────────────── */
-const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité.
+const EXTRACTION_PROMPT = `Tu es Billy, expert en factures d'électricité belges et françaises.
 Analyse la facture et réponds UNIQUEMENT avec un objet JSON valide (sans backticks, sans texte).
 
-Objectif: extraire 4 valeurs indispensables pour comparer des offres:
-1) prix du kWh réellement payé (€/kWh, TTC)
-2) consommation totale annuelle réelle (kWh/an)
-3) abonnement annuel HT (€/an HT)
-4) total annuel TTC réellement payé (€/an TTC)
+Objectif: extraire les valeurs pour comparer des offres fournisseur.
 
-Règles STRICTES:
-- N'invente jamais.
-- IMPORTANT "subscription_annual_ht_eur":
-  Ce champ correspond UNIQUEMENT à la redevance fixe du FOURNISSEUR.
-  N'inclus JAMAIS : distribution, transport, terme fixe réseau, redevances de raccordement, taxes, prosumer,
-  énergie renouvelable, contributions, ou tout autre poste non-fournisseur.
-  Si la facture ne donne pas clairement un TOTAL ANNUEL de cette redevance fournisseur, mets null.
-  Ne transforme jamais un montant mensuel en annuel.
-- Ne fais PAS d'extrapolation automatique.
-- Si une valeur n'est pas clairement visible, mets null.
-- Si bi-horaire HP/HC et que tu vois prix+conso HP/HC, retourne ces détails.
+RÈGLES STRICTES:
+- N'invente jamais. Si une valeur n'est pas clairement visible, mets null.
+- Ne fais PAS d'extrapolation (ne multiplie pas un mensuel par 12).
+
+IMPORTANT — CHAMPS CRITIQUES:
+
+1) "energy_unit_price_eur_kwh":
+   Prix unitaire de L'ÉNERGIE SEULE facturée par le FOURNISSEUR (€/kWh HT).
+   ⚠️ NE PAS utiliser le "Prix unitaire global" ou "prix tout compris" qui inclut distribution+transport+taxes.
+   — Belgique: section "Coût énergie [fournisseur]" → lignes "Consommation jour/nuit" → colonne "Prix unitaire".
+   — France: section "Fourniture" ou "Énergie" → "Prix du kWh" (pas le prix "acheminement" ni "TURPE").
+   Si bi-horaire (HP/HC ou Jour/Nuit), remplis plutôt hp_unit_price et hc_unit_price, laisse ce champ null.
+
+2) "subscription_annual_ht_eur":
+   UNIQUEMENT l'abonnement/redevance fixe du FOURNISSEUR, en €/an HT.
+   — Belgique: "Redevance fixe" dans "Coût énergie [fournisseur]". Additionne toutes les lignes de la période.
+   — France: "Abonnement" dans la section "Fourniture". Si mensuel, multiplie par le nombre de mois de la période (PAS par 12 automatiquement).
+   N'inclus JAMAIS: distribution, transport, TURPE, terme fixe réseau, prosumer, taxes, CTA, CSPE, TCFE.
+
+3) "total_annual_htva_eur":
+   Le montant TOTAL HT/HTVA de la facture (toutes composantes).
+   — Belgique: "Total coût", "Montant HTVA"
+   — France: "Total HT" ou "Montant HT" (souvent en bas de facture)
+
+4) "total_annual_ttc_eur":
+   Le montant TOTAL TTC/TVAC si clairement indiqué. Sinon null (sera auto-calculé).
+   — France: "Total TTC", "Montant TTC", "Net à payer"
+   — Belgique: rarement affiché directement, mettre null si absent.
+
+5) "consumption_kwh_annual":
+   Consommation totale (jour + nuit, HP + HC) en kWh sur la période de la facture.
+
+6) "country": Déduis le pays depuis l'adresse, le code postal ou le fournisseur: "BE", "FR", "LU", etc.
+   Indices: code postal 4 chiffres = BE, 5 chiffres = FR. Fournisseurs BE: Mega, Luminus, Eneco, Octa+. Fournisseurs FR: EDF, Engie (FR), TotalEnergies (FR).
 
 Schéma EXACT:
-
 {
   "provider": string|null,
   "plan_name": string|null,
   "postal_code": string|null,
   "meter_type": string|null,
   "billing_period": string|null,
-  "subscription_source_label": string|null,
+  "country": string|null,
 
   "energy_unit_price_eur_kwh": number|null,
   "consumption_kwh_annual": number|null,
   "subscription_annual_ht_eur": number|null,
+  "total_annual_htva_eur": number|null,
   "total_annual_ttc_eur": number|null,
 
   "hp_unit_price_eur_kwh": number|null,
@@ -207,17 +228,39 @@ function parseGPTResponse(raw: string): ExtractedBill {
   const hcKwh = numOrNull(data.hc_consumption_kwh);
   const weighted = computeWeightedPrice(hpPrice, hcPrice, hpKwh, hcKwh);
 
+  // Auto-compute TTC from HTVA if TTC is missing
+  const htva = numOrNull(data.total_annual_htva_eur);
+  let ttc = numOrNull(data.total_annual_ttc_eur);
+  const country = ((data.country as string) ?? null)?.toUpperCase() ?? null;
+
+  if (ttc == null && htva != null) {
+    const sub = numOrNull(data.subscription_annual_ht_eur) ?? 0;
+    if (country === "FR") {
+      // France: 5.5% TVA on subscription+CTA, 20% on the rest (energy, CSPE, TCFE, etc.)
+      const subTTC = sub * 1.055;
+      const restTTC = (htva - sub) * 1.20;
+      ttc = Math.round((subTTC + restTTC) * 100) / 100;
+      console.log(`[analyze] Auto TTC (FR): sub=${sub}×1.055 + rest=${htva - sub}×1.20 = ${ttc} TTC`);
+    } else {
+      // Belgium: flat 6% TVA on electricity
+      ttc = Math.round(htva * 1.06 * 100) / 100;
+      console.log(`[analyze] Auto TTC (BE): ${htva} HTVA × 1.06 = ${ttc} TTC`);
+    }
+  }
+
   const bill: ExtractedBill = {
     provider: (data.provider as string) ?? null,
     plan_name: (data.plan_name as string) ?? null,
     postal_code: (data.postal_code as string) ?? null,
     meter_type: (data.meter_type as string) ?? null,
     billing_period: (data.billing_period as string) ?? null,
+    country,
 
     energy_unit_price_eur_kwh: weighted ?? numOrNull(data.energy_unit_price_eur_kwh),
     consumption_kwh_annual: numOrNull(data.consumption_kwh_annual),
     subscription_annual_ht_eur: numOrNull(data.subscription_annual_ht_eur),
-    total_annual_ttc_eur: numOrNull(data.total_annual_ttc_eur),
+    total_annual_htva_eur: htva,
+    total_annual_ttc_eur: ttc,
 
     hp_unit_price_eur_kwh: hpPrice,
     hc_unit_price_eur_kwh: hcPrice,
@@ -390,8 +433,10 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
   if (currentAnnualCost == null || currentAnnualCost <= 0) return [];
 
   const currentProvider = (bill.provider ?? "").toLowerCase();
+  const billCountry = (bill.country ?? "BE").toUpperCase();
 
   return (offers as Array<{
+    country?: string;
     provider: string;
     plan: string;
     price_kwh: number;
@@ -400,6 +445,7 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
     green: boolean;
     url: string;
   }>)
+    .filter((o) => !o.country || o.country.toUpperCase() === billCountry)
     .filter((o) => o.provider.toLowerCase() !== currentProvider)
     .map((offer) => {
       const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;

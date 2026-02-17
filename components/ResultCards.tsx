@@ -13,10 +13,13 @@ export interface ExtractedBill {
   meter_type?: string | null;
   billing_period?: string | null;
 
+  country?: string | null;
+
   // Nouveau modèle (annuel)
   energy_unit_price_eur_kwh?: number | null;
   consumption_kwh_annual?: number | null;
   subscription_annual_ht_eur?: number | null;
+  total_annual_htva_eur?: number | null;
   total_annual_ttc_eur?: number | null;
 
   hp_unit_price_eur_kwh?: number | null;
@@ -301,25 +304,6 @@ export function ResultCards({ data }: ResultCardsProps) {
             ))}
           </div>
         </>
-      )}
-
-      {/* How to check engagement */}
-      {engagement === "unknown" && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-          <div className="font-bold text-[15px] mb-1.5">Comment vérifier ton engagement ?</div>
-          <div className="text-[13px] text-slate-600 leading-relaxed space-y-1">
-            <p>
-              <strong>Option 1 :</strong> Regarde ta facture, la mention « fixe » avec une date de
-              fin indique un engagement.
-            </p>
-            <p>
-              <strong>Option 2 :</strong> Connecte-toi à l'espace client de ton fournisseur.
-            </p>
-            <p>
-              <strong>Option 3 :</strong> Appelle ton fournisseur et demande-leur directement.
-            </p>
-          </div>
-        </div>
       )}
 
       {/* Legal disclaimer */}
