@@ -14,7 +14,7 @@
 import OpenAI from "openai";
 import offers from "@/data/offers.json";
 
-const ANALYZE_VERSION = "ANALYZE-V5-2026-02-17";
+const ANALYZE_VERSION = "ANALYZE-V6-2026-02-17";
 
 /* ──────────────────────────────────────────────
    OpenAI client
@@ -259,11 +259,9 @@ async function extractPdfText(fileBuffer: Buffer): Promise<string> {
 
   console.log(`[analyze][${ANALYZE_VERSION}] extractPdfText: buffer OK, ${fileBuffer.length} bytes`);
 
-  // CRITICAL: import pdf-parse/lib/pdf-parse directly to bypass index.js
-  // which contains a debug block that runs Fs.readFileSync('./test/data/...')
-  // when module.parent is undefined (always true in webpack/Vercel).
-  // @ts-ignore — no type declarations for subpath import
-  const mod: any = await import("pdf-parse/lib/pdf-parse");
+  // pdf-parse is excluded from webpack via serverExternalPackages in next.config.ts
+  // so it runs as a normal Node.js require (module.parent is defined → no debug mode)
+  const mod: any = await import("pdf-parse");
   const parser = mod?.default ?? mod;
   const parsed = await parser(fileBuffer);
   return (parsed?.text ?? "").toString().trim();
