@@ -62,11 +62,6 @@ export default function PaywallClient() {
   Pas d’abonnement. Tu payes uniquement quand tu en as besoin.
 </ChatBubble>
 
-          <ChatBubble delay={600}>
-            <span className="text-slate-600">
-              Pas d’abonnement. Tu payes uniquement quand tu en as besoin.
-            </span>
-          </ChatBubble>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 space-y-3">
