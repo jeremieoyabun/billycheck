@@ -2,7 +2,7 @@
 // Telecom bill extraction pipeline (GPT-4o) + offer comparison
 
 import OpenAI from "openai";
-import telecomOffers from "@/data/offers-telecom.json";
+import { getTelecomOffers } from "@/lib/offers/index";
 
 /* ──────────────────────────────────────────────
    Types
@@ -234,32 +234,20 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
     return offerType === billType;
   }
 
-  return (telecomOffers as Array<{
-    country: string;
-    provider: string;
-    plan: string;
-    monthly_price_eur: number;
-    plan_type: string;
-    download_speed_mbps: number | null;
-    includes_tv: boolean;
-    includes_internet: boolean;
-    includes_mobile: boolean;
-    url: string;
-  }>)
-    .filter((o) => o.country.toUpperCase() === billCountry)
-    .filter((o) => o.provider.toLowerCase() !== currentProvider)
+  return getTelecomOffers(billCountry)
+    .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
     .filter((o) => isCompatible(o.plan_type))
     .map((o) => ({
-      provider:               o.provider,
-      plan:                   o.plan,
-      monthly_price_eur:      o.monthly_price_eur,
-      plan_type:              o.plan_type,
-      download_speed_mbps:    o.download_speed_mbps,
-      includes_tv:            o.includes_tv,
-      includes_internet:      o.includes_internet,
-      includes_mobile:        o.includes_mobile,
+      provider:                 o.provider_name,
+      plan:                     o.offer_name,
+      monthly_price_eur:        o.monthly_price_eur,
+      plan_type:                o.plan_type,
+      download_speed_mbps:      o.download_speed_mbps,
+      includes_tv:              o.includes_tv,
+      includes_internet:        o.includes_internet,
+      includes_mobile:          o.includes_mobile,
       estimated_annual_savings: Math.round((currentMonthly - o.monthly_price_eur) * 12),
-      url:                    o.url,
+      url:                      o.source_url,
     }))
     .filter((o) => o.estimated_annual_savings > 10)
     .sort((a, b) => b.estimated_annual_savings - a.estimated_annual_savings)

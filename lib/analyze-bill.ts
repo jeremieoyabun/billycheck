@@ -12,11 +12,7 @@
 // this by validating the buffer BEFORE calling pdf-parse.
 
 import OpenAI from "openai";
-import offersElectricityBE from "@/data/offers-electricity-be.json";
-import offersElectricityFR from "@/data/offers-electricity-fr.json";
-
-// Combined offer pool — compareOffers filters by country
-const offers = [...offersElectricityBE, ...offersElectricityFR];
+import { getElectricityOffers } from "@/lib/offers/index";
 
 const ANALYZE_VERSION = "ANALYZE-V9-2026-02-17";
 
@@ -482,20 +478,11 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
   const currentProvider = (bill.provider ?? "").toLowerCase();
   const billCountry = (bill.country ?? "BE").toUpperCase();
 
-  return (offers as Array<{
-    country?: string;
-    provider: string;
-    plan: string;
-    price_kwh: number;
-    fixed_fee_month: number;
-    type: string;
-    green: boolean;
-    url: string;
-  }>)
-    .filter((o) => !o.country || o.country.toUpperCase() === billCountry)
-    .filter((o) => o.provider.toLowerCase() !== currentProvider)
+  return getElectricityOffers(billCountry)
+    .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
     .map((offer) => {
-      const annualCost = offer.price_kwh * annualKwh + offer.fixed_fee_month * 12;
+      // supplier_fixed_fee_year is already annual (no × 12 needed)
+      const annualCost = offer.energy_price_day * annualKwh + offer.supplier_fixed_fee_year;
       const savings = Math.round(currentAnnualCost - annualCost);
       const savingsPercent =
         currentAnnualCost > 0
@@ -503,14 +490,14 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
           : 0;
 
       return {
-        provider: offer.provider,
-        plan: offer.plan,
+        provider: offer.provider_name,
+        plan: offer.offer_name,
         estimated_savings: savings,
         savings_percent: savingsPercent,
-        price_kwh: offer.price_kwh,
-        type: offer.type,
-        green: offer.green,
-        url: offer.url,
+        price_kwh: offer.energy_price_day,
+        type: offer.contract_type,
+        green: false,
+        url: offer.source_url,
       };
     })
     .filter((o) => o.estimated_savings > 10)

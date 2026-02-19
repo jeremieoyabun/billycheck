@@ -60,15 +60,6 @@ export function HeroModule() {
     <ProviderLogoMarquee vertical="telecom" region="BE" />
   </div>
 </div>
-
-
-      {/* Electricity: manual form option */}
-      {vertical === "electricity" && (
-        <div className="w-full max-w-sm">
-          <ManualElectricityForm /> 
-        </div>
-      )}
-
       {/* Telecom: scan hint */}
       {vertical === "telecom" && (
         <p className="text-[13px] text-slate-500 italic">
