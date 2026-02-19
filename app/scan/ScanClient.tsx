@@ -249,7 +249,7 @@ export default function ScanPage() {
               <strong>
                 {vertical === "telecom"
                   ? "Envoie-moi ta facture télécom !"
-                  : "Envoie-moi ta facture d'electricité !"}
+                  : "Envoie-moi ta facture d'électricité !"}
               </strong>
               <br />
               {vertical === "telecom"
