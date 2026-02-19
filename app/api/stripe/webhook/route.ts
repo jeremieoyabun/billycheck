@@ -20,9 +20,9 @@ export async function POST(req: Request) {
   try {
     const body = await req.text();
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${err?.message || "unknown"}` },
+      { error: `Webhook signature verification failed: ${err instanceof Error ? err.message : "unknown"}` },
       { status: 400 }
     );
   }
@@ -43,10 +43,10 @@ export async function POST(req: Request) {
 
       console.log("[stripe-webhook] credits added", { uid, credits, sessionId: session.id });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[stripe-webhook] Handler error", err);
     return NextResponse.json(
-      { error: `Webhook handler error: ${err?.message || "unknown"}` },
+      { error: `Webhook handler error: ${err instanceof Error ? err.message : "unknown"}` },
       { status: 500 }
     );
   }

@@ -29,8 +29,9 @@ export default function CGUPage() {
 
       <H>2. Description du service</H>
       <p className="mt-3 text-sm leading-6 text-slate-700">
-        {SERVICE} permet à l’utilisateur de téléverser un document (ex: facture) afin d’en extraire certaines données
-        et d’afficher des estimations, comparaisons ou résultats informatifs, incluant des offres de partenaires.
+        {SERVICE} permet a l’utilisateur de televerser un document (ex: facture d’electricite ou de telecom)
+        afin d’en extraire certaines données et d’afficher des estimations, comparaisons ou resultats informatifs,
+        incluant des offres de partenaires.
       </p>
       <p className="mt-3 text-sm leading-6 text-slate-700">
         Le service repose en partie sur des traitements automatisés. Les résultats peuvent contenir des erreurs,

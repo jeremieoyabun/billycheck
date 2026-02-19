@@ -6,8 +6,6 @@ import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { grantPaidCredit } from "@/lib/scan-gate";
 
-const SCAN_PRICE_CENTS = 499;
-
 export async function POST(req: Request) {
   // Stripe not configured → avoid build/runtime crash
   if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -42,7 +40,7 @@ export async function POST(req: Request) {
 
   // ✅ Payment completed
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as any;
+    const session = event.data.object as unknown as { id: string; metadata?: Record<string, string>; amount_total?: number; currency?: string };
     const uid = session.metadata?.userIdentifier;
 
     if (!uid) {

@@ -1,0 +1,98 @@
+[
+  {
+    "country": "BE",
+    "provider": "Proximus",
+    "plan": "Flex S",
+    "monthly_price_eur": 44.99,
+    "plan_type": "bundle",
+    "download_speed_mbps": 200,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.proximus.be"
+  },
+  {
+    "country": "BE",
+    "provider": "Proximus",
+    "plan": "Flex M",
+    "monthly_price_eur": 54.99,
+    "plan_type": "bundle",
+    "download_speed_mbps": 500,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.proximus.be"
+  },
+  {
+    "country": "BE",
+    "provider": "Orange",
+    "plan": "Together S",
+    "monthly_price_eur": 39.99,
+    "plan_type": "bundle",
+    "download_speed_mbps": 150,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.orange.be"
+  },
+  {
+    "country": "BE",
+    "provider": "Orange",
+    "plan": "Together M",
+    "monthly_price_eur": 49.99,
+    "plan_type": "bundle",
+    "download_speed_mbps": 300,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.orange.be"
+  },
+  {
+    "country": "BE",
+    "provider": "VOO",
+    "plan": "Happy Trio",
+    "monthly_price_eur": 49.99,
+    "plan_type": "bundle",
+    "download_speed_mbps": 400,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.voo.be"
+  },
+  {
+    "country": "BE",
+    "provider": "Scarlet",
+    "plan": "Internet 500",
+    "monthly_price_eur": 22.99,
+    "plan_type": "internet",
+    "download_speed_mbps": 500,
+    "includes_tv": false,
+    "includes_internet": true,
+    "includes_mobile": false,
+    "url": "https://www.scarlet.be"
+  },
+  {
+    "country": "BE",
+    "provider": "Telenet",
+    "plan": "Wigo M",
+    "monthly_price_eur": 55.00,
+    "plan_type": "bundle",
+    "download_speed_mbps": 500,
+    "includes_tv": true,
+    "includes_internet": true,
+    "includes_mobile": true,
+    "url": "https://www.telenet.be"
+  },
+  {
+    "country": "BE",
+    "provider": "EDPnet",
+    "plan": "Internet Fiber",
+    "monthly_price_eur": 29.99,
+    "plan_type": "internet",
+    "download_speed_mbps": 1000,
+    "includes_tv": false,
+    "includes_internet": true,
+    "includes_mobile": false,
+    "url": "https://www.edpnet.be"
+  }
+]

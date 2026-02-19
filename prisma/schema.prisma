@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Scan {
@@ -27,10 +28,23 @@ model UserQuota {
   userIdentifier String   @unique
   freeScansUsed  Int      @default(0)
   paidCredits    Int      @default(0)
+  referralCode   String?  @unique
+  referredBy     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([userIdentifier])
+  @@index([referralCode])
+}
+
+model ReferralClaim {
+  id           String   @id @default(cuid())
+  referralCode String
+  referrerId   String
+  referredId   String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([referralCode])
 }
 
 model StripePayment {

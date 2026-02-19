@@ -376,8 +376,9 @@ export default function BillyCheckApp() {
       { text: "J'ai presque fini !", delay: 9000 },
     ];
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBillyMessages([]);
-    const timers = messages.map((msg, i) => 
+    const timers = messages.map((msg, i) =>
       setTimeout(() => {
         setBillyMessages(prev => [...prev, msg.text]);
       }, msg.delay)

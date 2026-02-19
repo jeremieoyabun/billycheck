@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
     }
 
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
     let uid: string | undefined = body?.userIdentifier;
 
     if (!uid) {

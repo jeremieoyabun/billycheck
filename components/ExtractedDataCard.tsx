@@ -60,22 +60,19 @@ function niceMissingLabel(key: string) {
 export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
   const router = useRouter();
 
-  // Nouveau modèle + fallback legacy (sans @ts-expect-error)
-  const b = bill as any;
-
   const energyUnitPrice: number | null =
-    b.energy_unit_price_eur_kwh ?? bill.unit_price_eur_kwh ?? null;
+    bill.energy_unit_price_eur_kwh ?? bill.unit_price_eur_kwh ?? null;
 
   const consumptionAnnual: number | null =
-    b.consumption_kwh_annual ?? bill.consumption_kwh ?? null;
+    bill.consumption_kwh_annual ?? bill.consumption_kwh ?? null;
 
   const subscriptionAnnualHT: number | null =
-    b.subscription_annual_ht_eur ??
+    bill.subscription_annual_ht_eur ??
     (bill.fixed_fees_monthly_eur != null ? bill.fixed_fees_monthly_eur * 12 : null) ??
     null;
 
   const totalAnnualTTC: number | null =
-    b.total_annual_ttc_eur ?? bill.total_amount_eur ?? null;
+    bill.total_annual_ttc_eur ?? bill.total_amount_eur ?? null;
 
   const meterType = bill.meter_type ?? null;
 
@@ -97,8 +94,8 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
   const localMissingRequired = required.filter((r) => !r.ok).map((r) => r.key);
 
   // Si le backend fournit déjà missing_fields, on le préfère
-  const missingRequired: string[] = Array.isArray(b.missing_fields)
-    ? (b.missing_fields as string[])
+  const missingRequired: string[] = Array.isArray(bill.missing_fields)
+    ? (bill.missing_fields as string[])
     : localMissingRequired;
 
   // Données secondaires (pour "partial" sans bloquer)
@@ -107,12 +104,12 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
 
   // ✅ Si le backend indique explicitement facture annuelle requise, on respecte
   const needsFullAnnualInvoice: boolean =
-    typeof b.needs_full_annual_invoice === "boolean"
-      ? b.needs_full_annual_invoice
+    typeof bill.needs_full_annual_invoice === "boolean"
+      ? bill.needs_full_annual_invoice
       : missingRequired.length > 0;
 
   // ✅ Si le backend fournit confidence, on la respecte… sauf si core complet → OK
-  const backendStatus = b.confidence as ExtractionStatus | undefined;
+  const backendStatus = bill.confidence as ExtractionStatus | undefined;
 
   const status: ExtractionStatus = needsFullAnnualInvoice
     ? "insufficient"
@@ -121,8 +118,8 @@ export function ExtractedDataCard({ bill, scanId }: ExtractedDataCardProps) {
     : backendStatus ?? (secondaryMissing > 0 ? "partial" : "ok");
 
 // Détection tarif HP/HC réelle (basée sur les prix, pas sur le compteur)
-const hp = b.hp_unit_price_eur_kwh;
-const hc = b.hc_unit_price_eur_kwh;
+const hp = bill.hp_unit_price_eur_kwh;
+const hc = bill.hc_unit_price_eur_kwh;
 
 const isHpHcTariff =
   typeof hp === "number" &&
@@ -144,7 +141,7 @@ const energySubtitle = isHpHcTariff
     subscriptionAnnualHT != null ? `${fmtNumber(subscriptionAnnualHT, 0)} € / an` : "Non détecté";
 
   const subscriptionBadge =
-    b.subscription_annual_ht_eur != null
+    bill.subscription_annual_ht_eur != null
       ? "Annuel HT"
       : bill.fixed_fees_monthly_eur != null
       ? "Estimé"

@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
+import { TelecomResultCards, type TelecomResultJson } from "./TelecomResultCards";
+import { ShareButton } from "./ShareButton";
+import { track } from "@/lib/analytics";
 
 /* ────────────────────────────────────────────
    Types
@@ -59,6 +63,7 @@ export interface ResultJson {
   bill: ExtractedBill;
   offers: Offer[];
   engagement?: "yes" | "no" | "unknown";
+  vertical?: "electricity" | "telecom";
 }
 
 /* ──────────── helpers ──────────── */
@@ -154,6 +159,7 @@ function OfferCard({
         href={offer.url ?? "#"}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => track("offer_clicked", { provider: offer.provider, vertical: "electricity", rank })}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           rank === 0
             ? "bg-emerald-500 text-white hover:bg-emerald-600"
@@ -172,6 +178,11 @@ interface ResultCardsProps {
 }
 
 export function ResultCards({ data }: ResultCardsProps) {
+  // ── Route to telecom renderer if vertical = telecom ──
+  if (data.vertical === "telecom") {
+    return <TelecomResultCards data={data as unknown as TelecomResultJson} />;
+  }
+
   const { bill, offers, engagement } = data;
   const hasOffers = offers && offers.length > 0;
 
@@ -272,11 +283,11 @@ export function ResultCards({ data }: ResultCardsProps) {
           />
 
           <Field
-            label="Abonnement annuel HT"
+            label="Prix fixe mensuel (annualise)"
             value={
               bill.subscription_annual_ht_eur != null
                 ? `${fmt(bill.subscription_annual_ht_eur)}€`
-                : "Non détecté"
+                : "Non detecte"
             }
             mono
           />
@@ -286,7 +297,7 @@ export function ResultCards({ data }: ResultCardsProps) {
   Les taxes et la TVA sont réglementées et identiques pour toutes les offres.
   Elles sont incluses dans le total TTC.
 </p>
-        {/* ✅ “SOUS LE </div> DU GRID” = JUSTE ICI */}
+        {/* ✅ "SOUS LE </div> DU GRID" = JUSTE ICI */}
 
         {bill.needs_full_annual_invoice && (
           <div className="mt-3 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs text-rose-800 leading-relaxed">
@@ -324,17 +335,38 @@ export function ResultCards({ data }: ResultCardsProps) {
         </>
       )}
 
+      {/* Referral share */}
+      <ShareButton />
+
+      {/* Cross-sell: Telecom */}
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xl">📱</span>
+          <div className="font-bold text-sm text-blue-900">Verifiez aussi votre telecom</div>
+        </div>
+        <p className="text-xs text-blue-800 leading-relaxed mb-3">
+          Nos utilisateurs economisent en moyenne 120 €/an en changeant de forfait telecom.
+          Analysez votre facture telecom gratuitement.
+        </p>
+        <Link
+          href="/scan?v=telecom"
+          className="w-full items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+        >
+          📱 Analyser ma facture telecom
+        </Link>
+      </div>
+
       {/* Legal disclaimer */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">
         <div className="font-semibold text-slate-600">* Informations importantes</div>
         <p>
-          Les estimations d'économies sont calculées sur la base des données extraites de ta facture
+          Les estimations d'economies sont calculees sur la base des données extraites de ta facture
           et des tarifs publics des fournisseurs au moment de l'analyse. Elles sont indicatives et
           peuvent varier.
         </p>
         <p>
           BillyCheck ne fournit pas de conseil financier ou juridique. Avant tout changement,
-          vérifie les conditions de ton contrat actuel.
+          verifie les conditions de ton contrat actuel.
         </p>
         <p>
           BillyCheck peut percevoir une commission du fournisseur si tu souscris via nos liens.

@@ -29,7 +29,15 @@ const FAQS = [
   },
   {
     q: "Mes données sont-elles protégées ?",
-    a: "Oui. Les factures sont supprimées immédiatement après analyse. BillyCheck respecte le RGPD. Aucune donnée personnelle inutile n’est conservée et une demande de suppression peut être effectuée à tout moment via contact@billycheck.com.",
+    a: "Oui. Les factures sont supprimées des que possible apres traitement. BillyCheck respecte le RGPD. Aucune donnee personnelle inutile n’est conservee et une demande de suppression peut etre effectuée a tout moment via contact@billycheck.com.",
+  },
+  {
+    q: "Quels contrats telecom sont couverts ?",
+    a: "Billy analyse les factures des principaux opérateurs belges francophones : Proximus, Orange, VOO, Scarlet, Telenet et autres. Que ce soit un forfait internet, mobile ou un pack tout-en-un (bundle internet + TV + mobile), Billy peut extraire les informations clés et les comparer avec les offres du marche.",
+  },
+  {
+    q: "Dois-je fournir ma vitesse internet ou mon volume data ?",
+    a: "Non, Billy les extrait directement depuis ta facture. Si ces informations sont mentionnées sur le document (ex: 500 Mbps, 20 Go de data), Billy les lira automatiquement pour affiner la comparaison avec les offres equivalentes.",
   },
 ];
 

@@ -4,6 +4,7 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { analyzeBill } from "@/lib/analyze-bill";
+import { analyzeTelecomBill } from "@/lib/analyze-telecom";
 import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
 
 /* ──────────────────────────────────────────────
@@ -11,6 +12,33 @@ import { consumeScanCredit, getQuotaStatus } from "@/lib/scan-gate";
    to prove Vercel is running YOUR code
    ────────────────────────────────────────────── */
 const ROUTE_VERSION = "PROCESS-V9-2026-02-17";
+
+/* ──────────────────────────────────────────────
+   Local bill type for server-side enrichment
+   (superset of ExtractedBill — includes computed
+   inference flags not present on the client type)
+   ────────────────────────────────────────────── */
+type BillLike = {
+  energy_unit_price_eur_kwh?: number | null;
+  consumption_kwh_annual?: number | null;
+  subscription_annual_ht_eur?: number | null;
+  total_annual_htva_eur?: number | null;
+  total_annual_ht_eur?: number | null;
+  total_annual_ttc_eur?: number | null;
+  total_htva_eur?: number | null;
+  total_ht_eur?: number | null;
+  hp_unit_price_eur_kwh?: number | null;
+  hc_unit_price_eur_kwh?: number | null;
+  hp_consumption_kwh?: number | null;
+  hc_consumption_kwh?: number | null;
+  total_amount_eur?: number | null;
+  consumption_kwh?: number | null;
+  unit_price_eur_kwh?: number | null;
+  fixed_fees_eur?: number | null;
+  country?: string | null;
+  total_annual_ttc_inferred?: boolean;
+  subscription_inferred_monthly?: boolean;
+};
 
 /* ──────────────────────────────────────────────
    Helpers
@@ -27,27 +55,28 @@ function toNumberFR(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizeBillNumbers(bill: any) {
-  if (!bill || typeof bill !== "object") return bill;
+function normalizeBillNumbers<T extends object>(bill: T | null | undefined): T {
+  if (!bill || typeof bill !== "object") return bill as unknown as T;
+  const b = bill as Record<string, unknown>;
   return {
     ...bill,
-    energy_unit_price_eur_kwh: toNumberFR(bill.energy_unit_price_eur_kwh),
-    consumption_kwh_annual: toNumberFR(bill.consumption_kwh_annual),
-    subscription_annual_ht_eur: toNumberFR(bill.subscription_annual_ht_eur),
-    total_annual_htva_eur: toNumberFR(bill.total_annual_htva_eur),
-    total_annual_ttc_eur: toNumberFR(bill.total_annual_ttc_eur),
-    hp_unit_price_eur_kwh: toNumberFR(bill.hp_unit_price_eur_kwh),
-    hc_unit_price_eur_kwh: toNumberFR(bill.hc_unit_price_eur_kwh),
-    hp_consumption_kwh: toNumberFR(bill.hp_consumption_kwh),
-    hc_consumption_kwh: toNumberFR(bill.hc_consumption_kwh),
-    total_amount_eur: toNumberFR(bill.total_amount_eur),
-    consumption_kwh: toNumberFR(bill.consumption_kwh),
-    unit_price_eur_kwh: toNumberFR(bill.unit_price_eur_kwh),
-    fixed_fees_eur: toNumberFR(bill.fixed_fees_eur),
-  };
+    energy_unit_price_eur_kwh: toNumberFR(b.energy_unit_price_eur_kwh),
+    consumption_kwh_annual: toNumberFR(b.consumption_kwh_annual),
+    subscription_annual_ht_eur: toNumberFR(b.subscription_annual_ht_eur),
+    total_annual_htva_eur: toNumberFR(b.total_annual_htva_eur),
+    total_annual_ttc_eur: toNumberFR(b.total_annual_ttc_eur),
+    hp_unit_price_eur_kwh: toNumberFR(b.hp_unit_price_eur_kwh),
+    hc_unit_price_eur_kwh: toNumberFR(b.hc_unit_price_eur_kwh),
+    hp_consumption_kwh: toNumberFR(b.hp_consumption_kwh),
+    hc_consumption_kwh: toNumberFR(b.hc_consumption_kwh),
+    total_amount_eur: toNumberFR(b.total_amount_eur),
+    consumption_kwh: toNumberFR(b.consumption_kwh),
+    unit_price_eur_kwh: toNumberFR(b.unit_price_eur_kwh),
+    fixed_fees_eur: toNumberFR(b.fixed_fees_eur),
+  } as T;
 }
 
-function hasUsefulData(bill: any) {
+function hasUsefulData(bill: BillLike | null | undefined) {
   return (
     bill?.energy_unit_price_eur_kwh != null ||
     bill?.consumption_kwh_annual != null ||
@@ -71,19 +100,14 @@ function inferMimeType(file: File): string {
   return "application/octet-stream";
 }
 
-function clampVatRate(v: number) {
-  if (!Number.isFinite(v)) return 0;
-  return Math.max(0, Math.min(30, v));
-}
-
-function pickFirstNumber(...vals: any[]): number | null {
+function pickFirstNumber(...vals: unknown[]): number | null {
   for (const v of vals) {
     if (typeof v === "number" && Number.isFinite(v)) return v;
   }
   return null;
 }
 
-function inferAnnualTTC(bill: any) {
+function inferAnnualTTC(bill: BillLike | null) {
   if (!bill) return bill;
   if (typeof bill.total_annual_ttc_eur === "number") return bill;
 
@@ -96,7 +120,7 @@ function inferAnnualTTC(bill: any) {
   );
   if (annualHT == null) return bill;
 
-  const country = ((bill.country as string) ?? "").toUpperCase();
+  const country = (bill.country ?? "").toUpperCase();
   let ttc: number;
 
   if (country === "FR") {
@@ -148,15 +172,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   // 3) Read file from FormData
   let file: File | null = null;
-  let engagement: "yes" | "no" | "unknown" = (existing.engagement as any) ?? "unknown";
+  const eng = existing.engagement;
+  let engagement: "yes" | "no" | "unknown" = (eng === "yes" || eng === "no" || eng === "unknown") ? eng : "unknown";
+  let vertical: "electricity" | "telecom" = "electricity";
 
   try {
     const form = await req.formData();
     const maybeFile = form.get("file");
     const engParam = form.get("engagement");
+    const verticalParam = form.get("vertical");
 
     if (typeof engParam === "string" && ["yes", "no", "unknown"].includes(engParam)) {
       engagement = engParam as "yes" | "no" | "unknown";
+    }
+
+    if (typeof verticalParam === "string" && verticalParam === "telecom") {
+      vertical = "telecom";
     }
 
     if (maybeFile instanceof File) {
@@ -261,13 +292,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
     }
 
-    // 6) Run analysis (this is where GPT is called)
-    console.log(`[process][${ROUTE_VERSION}] calling analyzeBill`, {
+    // 6) Run analysis — route by vertical
+    console.log(`[process][${ROUTE_VERSION}] calling analyze (vertical=${vertical})`, {
       id,
       mimeType,
       bufferLength: buffer.length,
     });
 
+    // ── TELECOM path ──
+    if (vertical === "telecom") {
+      const telecomResult = await analyzeTelecomBill(buffer, mimeType);
+      const resultJson = {
+        ...telecomResult,
+        engagement,
+        _v: ROUTE_VERSION,
+      };
+      const scan = await prisma.scan.update({
+        where: { id },
+        data: {
+          status: "DONE",
+          resultJson: JSON.parse(JSON.stringify(resultJson)),
+        },
+      });
+      return NextResponse.json({ ok: true, scan, _v: ROUTE_VERSION });
+    }
+
+    // ── ELECTRICITY path (default) ──
     const result = await analyzeBill(buffer, mimeType, engagement);
 
     // 7) Normalize & enrich
@@ -284,7 +334,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       normalizedBill.subscription_annual_ht_eur = Number(
         (normalizedBill.subscription_annual_ht_eur * 12).toFixed(2)
       );
-      normalizedBill.subscription_inferred_monthly = true;
+      (normalizedBill as BillLike).subscription_inferred_monthly = true;
     }
 
     const normalizedResult = { ...result, bill: normalizedBill };

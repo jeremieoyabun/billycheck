@@ -24,7 +24,9 @@ export function ScanStatus({ status, onRetry }: ScanStatusProps) {
   /* ── Animated messages while processing ── */
   useEffect(() => {
     if (status !== "PROCESSING") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMsgs([]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProgress(0);
 
     const timers = MESSAGES.map((m) =>
@@ -52,9 +54,9 @@ export function ScanStatus({ status, onRetry }: ScanStatusProps) {
             <strong>Oups 😅</strong>
           </ChatBubble>
           <ChatBubble delay={300}>
-            J'arrive pas à lire cette facture. C'est peut-être flou, ou ce
-            n'est pas une facture d'électricité. Essaie avec une photo plus
-            nette ou un PDF.
+            Je n'arrive pas a lire ce document. Il est peut-etre flou ou
+            le format n'est pas reconnu. Essaie avec une photo plus nette
+            ou un PDF.
           </ChatBubble>
         </div>
 

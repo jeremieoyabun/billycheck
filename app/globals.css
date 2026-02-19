@@ -19,6 +19,7 @@
   --animate-fade-up: fade-up 0.4s ease-out both;
   --animate-billy-bounce: billy-bounce 1.5s ease-in-out infinite;
   --animate-billy-float: billy-float 3s ease-in-out infinite;
+  --animate-marquee: marquee 22s linear infinite;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(16px); }
@@ -32,6 +33,23 @@
   @keyframes billy-float {
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-8px); }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+}
+
+/* Marquee: pause on hover, respect reduced motion */
+.marquee-track {
+  animation: marquee 22s linear infinite;
+}
+.marquee-container:hover .marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
   }
 }
 

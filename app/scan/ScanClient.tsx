@@ -10,7 +10,10 @@ import { ScanStatus } from "@/components/ScanStatus";
 import { ScanCounter } from "@/components/ScanCounter";
 import { BillNotCompatible } from "@/components/BillNotCompatible";
 import { BillTypeModal } from "@/components/BillTypeModal";
+import { VerticalTabs } from "@/components/VerticalTabs";
 import { getClientUserId } from "@/lib/user-id.client";
+import { track } from "@/lib/analytics";
+import type { Vertical } from "@/lib/verticals";
 
 type Step = "upload" | "processing" | "failed" | "bill_not_compatible";
 
@@ -29,9 +32,14 @@ export default function ScanPage() {
   const paymentSuccess = searchParams.get("payment") === "success";
   const rescanId = searchParams.get("rescan"); // ex: /scan?rescan=cmlm22...
 
+  const initialVertical = (searchParams.get("v") as Vertical | null) ?? "electricity";
+  const [vertical, setVertical] = useState<Vertical>(
+    initialVertical === "telecom" ? "telecom" : "electricity"
+  );
+
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
-  const [scanId, setScanId] = useState<string | null>(null); // (debug / future use)
+  const [scanId, setScanId] = useState<string | null>(null);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [showBillModal, setShowBillModal] = useState(false);
 
@@ -44,7 +52,6 @@ export default function ScanPage() {
 
   /* ── Fetch quota on mount ── */
   useEffect(() => {
-    // Ensure client-side user ID is set
     getClientUserId();
     refreshQuota();
   }, [refreshQuota]);
@@ -85,6 +92,7 @@ export default function ScanPage() {
         // 2) Process
         const form = new FormData();
         form.append("file", f);
+        form.append("vertical", vertical);
 
         const processRes = await fetch(`/api/scans/${id}/process`, {
           method: "POST",
@@ -94,27 +102,34 @@ export default function ScanPage() {
         const result = await processRes.json();
 
         if (result?.code === "PAYWALL_REQUIRED") {
+          track("paywall_redirected", { vertical });
           router.push("/paywall");
           return;
         }
 
         if (result?.code === "BILL_NOT_COMPATIBLE") {
+          track("scan_failed", { vertical, reason: "not_compatible" });
           setStep("bill_not_compatible");
           return;
         }
 
         if (result?.scan?.status === "DONE") {
+          track("scan_completed", { vertical });
+          // Fire-and-forget referral claim (idempotent on server)
+          fetch("/api/referrals/claim", { method: "POST" }).catch(() => {});
           router.push(`/result/${id}`);
           return;
         }
 
+        track("scan_failed", { vertical, reason: "processing_error" });
         setStep("failed");
       } catch (err) {
         console.error("Scan error:", err);
+        track("scan_failed", { vertical, reason: "exception" });
         setStep("failed");
       }
     },
-    [router]
+    [router, vertical]
   );
 
   /* ── Rescan flow: process existing scan id ── */
@@ -126,6 +141,7 @@ export default function ScanPage() {
       try {
         const form = new FormData();
         form.append("file", f);
+        form.append("vertical", vertical);
 
         const processRes = await fetch(`/api/scans/${existingId}/process`, {
           method: "POST",
@@ -135,33 +151,40 @@ export default function ScanPage() {
         const result = await processRes.json();
 
         if (result?.code === "PAYWALL_REQUIRED") {
+          track("paywall_redirected", { vertical });
           router.push("/paywall");
           return;
         }
 
         if (result?.code === "BILL_NOT_COMPATIBLE") {
+          track("scan_failed", { vertical, reason: "not_compatible" });
           setStep("bill_not_compatible");
           return;
         }
 
         if (result?.scan?.status === "DONE") {
+          track("scan_completed", { vertical });
+          fetch("/api/referrals/claim", { method: "POST" }).catch(() => {});
           router.push(`/result/${existingId}`);
           return;
         }
 
+        track("scan_failed", { vertical, reason: "processing_error" });
         setStep("failed");
       } catch (err) {
         console.error("Rescan error:", err);
+        track("scan_failed", { vertical, reason: "exception" });
         setStep("failed");
       }
     },
-    [router]
+    [router, vertical]
   );
 
   /* ── File selected ── */
   const handleFileAccepted = useCallback(
     (f: File) => {
       setFile(f);
+      track("scan_started", { vertical });
 
       // ✅ MODE RESCAN: relaunch processing on existing scan
       if (rescanId) {
@@ -171,13 +194,14 @@ export default function ScanPage() {
 
       // ✅ FLOW NORMAL
       if (quota && !quota.canScan) {
+        track("paywall_redirected", { vertical, reason: "quota_exceeded" });
         router.push("/paywall");
         return;
       }
 
       startProcessing(f);
     },
-    [processRescan, quota, rescanId, router, startProcessing]
+    [processRescan, quota, rescanId, router, startProcessing, vertical]
   );
 
   /* ── Retry ── */
@@ -201,10 +225,15 @@ export default function ScanPage() {
             </div>
           </div>
 
+          {/* Vertical selector */}
+          <div className="flex justify-center mb-5">
+            <VerticalTabs value={vertical} onChange={setVertical} />
+          </div>
+
           {/* Payment success banner */}
           {paymentSuccess && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-[13px] text-emerald-800 mb-4">
-              ✅ Paiement reçu ! Tu peux scanner ta facture.
+              ✅ Paiement recu ! Tu peux scanner ta facture.
             </div>
           )}
 
@@ -217,59 +246,85 @@ export default function ScanPage() {
 
           <div className="flex flex-col gap-2.5 mb-6">
             <ChatBubble>
-              <strong>Envoie-moi ta facture !</strong>
+              <strong>
+                {vertical === "telecom"
+                  ? "Envoie-moi ta facture télécom !"
+                  : "Envoie-moi ta facture d'electricité !"}
+              </strong>
               <br />
-              Photo, PDF, capture d&apos;écran... tout fonctionne.
+              {vertical === "telecom"
+                ? "Pour les Télécom, le scan de ta facture est recommandé."
+                : "Photo, PDF, capture d'écran - tout fonctionne."}
             </ChatBubble>
           </div>
 
           <UploadDropzone onFileAccepted={handleFileAccepted} />
 
-          {/* Bill type info */}
-          <div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="text-2xl">⚠️</div>
-              <div>
-                <div className="font-bold text-[15px] text-amber-900 mb-1">
-                  Important : utilisez une facture annuelle ou de régularisation
+          {/* Bill type info - electricity only */}
+          {vertical === "electricity" && (
+            <div className="mt-6 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="text-2xl">⚠️</div>
+                <div>
+                  <div className="font-bold text-[15px] text-amber-900 mb-1">
+                    Important : utilisez une facture annuelle ou de régularisation
+                  </div>
+                  <div className="text-[14px] text-amber-800">
+                    Les écheanciers ou factures estimées ne permettent pas de comparer correctement les offres.
+                  </div>
                 </div>
-                <div className="text-[14px] text-amber-800">
-                  Les échéanciers ou factures estimées ne permettent pas de comparer correctement les offres.
+              </div>
+
+              <div className="space-y-2 text[14px] text-amber-900 mb-4">
+                <div className="flex items-start gap-2">
+                  <span>✓</span>
+                  <span>Consommation réelle en kWh</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span>✓</span>
+                  <span>Prix fixe mensuel (HT)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span>✓</span>
+                  <span>{"Prix de l'energie (€/kWh HT)"}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowBillModal(true)}
+                className="w-full py-3 bg-amber-500 text-white rounded-xl text-sm font-bold shadow hover:bg-amber-600 transition-all"
+              >
+                📄 Voir un exemple de facture compatible
+              </button>
+
+              {file && (
+                <div className="mt-4 flex items-center gap-2.5 px-4 py-3 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-500">
+                  <span>📎</span>
+                  <span className="flex-1 truncate">{file.name}</span>
+                  <span className="text-emerald-500">✓</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Telecom hint */}
+          {vertical === "telecom" && (
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4">
+              <div className="flex items-start gap-3">
+                <div className="text-xl">📱</div>
+                <div>
+                  <div className="font-bold text-[14px] text-blue-900 mb-1">
+                    Pour une analyse optimale
+                  </div>
+                  <div className="space-y-1 text-[13px] text-blue-800">
+                    <div className="flex gap-2"><span>✓</span><span>Facture Proximus, Orange, VOO, Scarlet, Telenet...</span></div>
+                    <div className="flex gap-2"><span>✓</span><span>Prix du forfait mensuel visible</span></div>
+                    <div className="flex gap-2"><span>✓</span><span>Débit internet ou volume data mobile si bundle</span></div>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="space-y-2 text-[14px] text-amber-900 mb-4">
-              <div className="flex items-start gap-2">
-                <span>✓</span>
-                <span>Consommation réelle en kWh</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span>✓</span>
-                <span>Détail du prix de l&apos;énergie (HT)</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span>✓</span>
-                <span>Abonnement (HT)</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowBillModal(true)}
-              className="w-full py-3 bg-amber-500 text-white rounded-xl text-sm font-bold shadow hover:bg-amber-600 transition-all"
-            >
-              📄 Voir un exemple de facture compatible
-            </button>
-
-            {/* Optional: show selected filename */}
-            {file && (
-              <div className="mt-4 flex items-center gap-2.5 px-4 py-3 bg-white border border-slate-200 rounded-xl text-[13px] text-slate-500">
-                <span>📎</span>
-                <span className="flex-1 truncate">{file.name}</span>
-                <span className="text-emerald-500">✓</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 

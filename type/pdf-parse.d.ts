@@ -3,9 +3,9 @@ declare module "pdf-parse" {
     text: string;
     numpages?: number;
     numrender?: number;
-    info?: any;
-    metadata?: any;
+    info?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
     version?: string;
   }
-  export default function pdfParse(dataBuffer: Buffer, options?: any): Promise<PdfParseResult>;
+  export default function pdfParse(dataBuffer: Buffer, options?: Record<string, unknown>): Promise<PdfParseResult>;
 }

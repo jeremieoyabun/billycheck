@@ -51,7 +51,7 @@ export default function ResultPage() {
         // API wrapper without scan or unexpected payload
         throw new Error(
           typeof payload === "object" && payload && "error" in payload
-            ? String((payload as any).error)
+            ? String((payload as { error?: unknown }).error)
             : "Réponse API invalide"
         );
       }
@@ -168,8 +168,8 @@ export default function ResultPage() {
         <div className="text-center py-12">
           <Billy expression="error" size={100} />
           <ChatBubble>
-            L'analyse est terminée mais je n'ai pas pu extraire de données.
-            Essaie avec une facture plus lisible.
+            {"L'analyse est terminée mais je n'ai pas pu extraire de données."}
+            {" Essaie avec une facture plus lisible."}
           </ChatBubble>
         </div>
       )}

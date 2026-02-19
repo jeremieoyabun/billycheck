@@ -347,7 +347,7 @@ async function extractPdfText(fileBuffer: Buffer): Promise<string> {
 
   // pdf-parse is excluded from webpack via serverExternalPackages in next.config.ts
   // so it runs as a normal Node.js require (module.parent is defined → no debug mode)
-  const mod: any = await import("pdf-parse");
+  const mod = await import("pdf-parse");
   const parser = mod?.default ?? mod;
   const parsed = await parser(fileBuffer);
   return (parsed?.text ?? "").toString().trim();

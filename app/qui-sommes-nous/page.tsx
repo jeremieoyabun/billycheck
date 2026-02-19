@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata = {
   title: "Qui sommes-nous | BillyCheck",
   description:
-    "BillyCheck vous aide à comprendre votre facture d’électricité et à repérer des offres potentiellement plus avantageuses, en quelques secondes.",
+    "BillyCheck vous aide a comprendre votre facture d’electricite ou de telecom et a reperer des offres potentiellement plus avantageuses, en quelques secondes. Belgique francophone.",
 };
 
 export default function QuiSommesNousPage() {
@@ -16,14 +16,15 @@ export default function QuiSommesNousPage() {
           <p className="text-sm text-slate-500 mb-3">Qui sommes-nous</p>
 
           <h1 className="font-display font-black text-[clamp(30px,6vw,48px)] leading-tight">
-            Nous rendons les factures d’électricité{" "}
-            <span className="text-billy-blue">plus simples</span>.
+            Télécom et Électricite{" "}
+            <span className="text-billy-blue">moins chers</span>.
           </h1>
 
           <p className="mt-5 text-[17px] sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            BillyCheck est un outil conçu pour aider le grand public à comprendre sa facture,
-            repérer les informations clés, et comparer avec des offres du marché quand c’est possible.
-            Notre objectif est clair : vous faire gagner du temps et vous donner de la visibilité, sans jargon.
+            BillyCheck est un outil concu pour aider le grand public à comprendre ses factures
+            d’électricité et de télécom, repérer les informations clés, et comparer avec des offres
+            du marché quand c’est possible.
+            Notre objectif est clair : vous faire gagner du temps, de l'argent et vous donner de la visibilité, sans jargon.
           </p>
 
           <div className="mt-8 flex items-center justify-center gap-3">

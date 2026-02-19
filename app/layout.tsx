@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Nunito, DM_Sans, DM_Mono } from "next/font/google";
+import Script from "next/script";
 import Image from "next/image";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
+import { ReferralCapture } from "@/components/ReferralCapture";
 import "./globals.css";
 
 const nunito = Nunito({ subsets: ["latin"], variable: "--font-display", weight: ["700", "800", "900"] });
@@ -12,15 +14,15 @@ const dmMono = DM_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://billycheck.com"),
 
-  title: "BillyCheck — Payez-vous trop cher votre électricité ?",
+  title: "BillyCheck - Telecom et Electricite : payez-vous trop cher ?",
   description:
-    "Scannez votre facture d'énergie. Billy l'analyse en 30 secondes et vous montre les offres potentiellement plus avantageuses. Premier check gratuit.",
+    "Analysez votre facture de telephonie ou d'electricite en 30 secondes. Billy compare les meilleures offres disponibles en Belgique francophone. 2 analyses gratuites.",
   icons: {
     icon: "/favicon.png",
   },
   openGraph: {
-    title: "BillyCheck — Payez-vous trop cher ?",
-    description: "Scannez votre facture, découvrez vos économies potentielles en 30 secondes.",
+    title: "BillyCheck - Telecom et Electricite",
+    description: "Analysez votre facture telecom ou electricite en 30 secondes. Belgique francophone.",
     url: "https://billycheck.com",
     siteName: "BillyCheck",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
@@ -30,8 +32,8 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "BillyCheck — Payez-vous trop cher ?",
-    description: "Scannez votre facture, découvrez vos économies potentielles en 30 secondes.",
+    title: "BillyCheck - Telecom et Electricite",
+    description: "Analysez votre facture telecom ou electricite. Belgique francophone.",
     images: ["/og-image.png"],
   },
 };
@@ -59,6 +61,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="flex-1">{children}</main>
 
         <Footer />
+
+        {/* Capture ?ref= referral code from URL into cookie */}
+        <ReferralCapture />
+
+        {/* Google Analytics 4 — activated via NEXT_PUBLIC_GA_ID env var */}
+        {process.env.NEXT_PUBLIC_GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', { page_path: window.location.pathname });
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );
