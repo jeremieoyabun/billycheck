@@ -350,7 +350,7 @@ export function ResultCards({ data }: ResultCardsProps) {
         </p>
         <Link
           href="/scan?v=telecom"
-          className="w-full items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+          className="w-full items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
         >
           📱 Analyser ma facture telecom
         </Link>

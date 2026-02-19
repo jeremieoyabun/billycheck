@@ -119,9 +119,10 @@ function ElectricityCrossSell() {
       </p>
       <Link
         href="/scan?v=electricity"
-        className="w-full flex items-center gap-1.5 px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors text-center"
       >
-        ⚡ Analyser ma facture d'electricite
+        <span className="shrink-0">⚡</span>
+  <span className="text-center">Analyser ma facture d'électricité</span>
       </Link>
     </div>
   );
