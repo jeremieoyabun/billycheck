@@ -162,12 +162,22 @@ export default function ResultPage() {
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-[13px] text-blue-800">
               <p className="font-semibold mb-0.5">🇧🇪 Réseau de distribution (GRD)</p>
               <p>
-                En Belgique, une grande partie de la facture dépend du GRD (distribution/transport).
-                Billy tient compte de ta région lorsque c'est possible.
+                En Belgique, une grande partie de ta facture dépend du GRD (distribution + transport).
+                Billy estime ces coûts pour chaque offre selon ta région.
               </p>
               <p className="mt-1 text-blue-600 text-[12px]">
-                GRD non détecté — certains coûts réseau sont estimés.
+                {scan.resultJson.bill?.ean
+                  ? "EAN détecté — région identifiée depuis le compteur."
+                  : "GRD non détecté — coûts réseau estimés (moyennes régionales)."}
               </p>
+              {scan.resultJson.offers?.[0]?.assumptions &&
+                scan.resultJson.offers[0].assumptions!.length > 0 && (
+                  <ul className="mt-2 space-y-0.5 text-[11px] text-blue-700 opacity-80 list-disc list-inside">
+                    {scan.resultJson.offers[0].assumptions!.slice(0, 2).map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                )}
             </div>
           )}
 

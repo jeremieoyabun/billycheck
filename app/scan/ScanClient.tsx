@@ -308,15 +308,6 @@ export default function ScanPage() {
             </div>
           )}
 
-          {/* Electricity: manual input option (secondary, below upload) */}
-          {vertical === "electricity" && (
-            <div className="mt-2">
-              <p className="text-[12px] text-slate-400 text-center mb-1">
-                Ou renseigne directement tes données <span aria-hidden="true">↓</span>
-              </p>
-              <ManualElectricityForm />
-            </div>
-          )}
 
           {/* Telecom hint */}
           {vertical === "telecom" && (

@@ -40,6 +40,11 @@ export interface ExtractedBill {
   needs_full_annual_invoice?: boolean;
   is_monthly_bill?: boolean;
 
+  // Belgium-specific
+  ean?: string | null;
+  prosumer?: boolean | null;
+  inverter_kva?: number | null;
+
   // Legacy fallback
   total_amount_eur?: number | null;
   consumption_kwh?: number | null;
@@ -57,6 +62,11 @@ export interface Offer {
   type: string;
   green?: boolean;
   url?: string;
+  // Belgium-specific breakdown
+  total_tvac?: number;
+  total_htva?: number;
+  vat_amount?: number;
+  assumptions?: string[];
 }
 
 export interface ResultJson {

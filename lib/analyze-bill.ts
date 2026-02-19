@@ -13,6 +13,8 @@
 
 import OpenAI from "openai";
 import { getElectricityOffers } from "@/lib/offers/index";
+import { lookupGrdFromEAN, type BeRegion } from "@/lib/pricing/be/grd";
+import { calcBelgiumAnnualTotalTVAC } from "@/lib/pricing/be/calc";
 
 const ANALYZE_VERSION = "ANALYZE-V9-2026-02-17";
 
@@ -57,6 +59,11 @@ export interface ExtractedBill {
   needs_full_annual_invoice: boolean;
   is_monthly_bill?: boolean;
 
+  // Belgium-specific (optional — extracted when present on bill)
+  ean?: string | null;
+  prosumer?: boolean | null;
+  inverter_kva?: number | null;
+
   extraction_mode?: "image_vision" | "pdf_text";
   pdf_text_length?: number;
 }
@@ -70,6 +77,11 @@ export interface OfferResult {
   type: string;
   green: boolean;
   url: string;
+  // Belgium-specific breakdown (present when country === "BE")
+  total_tvac?: number;
+  total_htva?: number;
+  vat_amount?: number;
+  assumptions?: string[];
 }
 
 export interface AnalysisResult {
@@ -127,12 +139,25 @@ IMPORTANT — CHAMPS CRITIQUES:
    Exemples: "2024-12-21", "2025-12-09".
    Cherche "Période de facturation", "du ... au ...", "Période de consommation".
 
+8) "ean": Code EAN-18 du point de livraison (18 chiffres, commence par 54141 en Belgique).
+   Cherche "EAN", "Code EAN", "EAN-18", "Point d'accès", "Code du compteur".
+   Retourne les 18 chiffres uniquement (sans espaces ni tirets). Sinon null.
+
+9) "prosumer": true si la facture mentionne panneaux solaires, injection réseau,
+   "prosumer", onduleur, "nettometing", ou production propre. Sinon false.
+
+10) "inverter_kva": Puissance nominale de l'onduleur en kVA si explicitement indiquée.
+    Cherche "kVA", "puissance onduleur", "puissance injection". Sinon null.
+
+11) "meter_type": Type de compteur électrique. Retourne "mono" pour un compteur mono-horaire
+    (tarif unique), ou "bi" pour un compteur bi-horaire (HP/HC, jour/nuit). Sinon null.
+
 Schéma EXACT:
 {
   "provider": string|null,
   "plan_name": string|null,
   "postal_code": string|null,
-  "meter_type": string|null,
+  "meter_type": "mono"|"bi"|null,
   "billing_period": string|null,
   "billing_period_start": string|null,
   "billing_period_end": string|null,
@@ -147,7 +172,11 @@ Schéma EXACT:
   "hp_unit_price_eur_kwh": number|null,
   "hc_unit_price_eur_kwh": number|null,
   "hp_consumption_kwh": number|null,
-  "hc_consumption_kwh": number|null
+  "hc_consumption_kwh": number|null,
+
+  "ean": string|null,
+  "prosumer": boolean,
+  "inverter_kva": number|null
 }
 
 Si ce n'est pas une facture d'électricité, retourne tous les champs à null.`;
@@ -287,6 +316,17 @@ function parseGPTResponse(raw: string): ExtractedBill {
     console.log(`[analyze] MONTHLY BILL detected: ${periodDays} days (${periodStart} → ${periodEnd}). Need annual invoice.`);
   }
 
+  // EAN: strip all non-digits, validate length=18
+  const rawEan = (data.ean as string) ?? null;
+  const eanDigits = rawEan ? rawEan.replace(/\D/g, "") : null;
+  const ean = eanDigits && eanDigits.length === 18 ? eanDigits : null;
+
+  // prosumer: explicit boolean from GPT, null if not returned
+  const prosumer: boolean | null =
+    typeof data.prosumer === "boolean" ? data.prosumer : null;
+
+  const inverterKva = numOrNull(data.inverter_kva);
+
   const bill: ExtractedBill = {
     provider: (data.provider as string) ?? null,
     plan_name: (data.plan_name as string) ?? null,
@@ -308,6 +348,10 @@ function parseGPTResponse(raw: string): ExtractedBill {
     hc_unit_price_eur_kwh: hcPrice,
     hp_consumption_kwh: hpKwh,
     hc_consumption_kwh: hcKwh,
+
+    ean,
+    prosumer,
+    inverter_kva: inverterKva,
 
     confidence: "insufficient",
     missing_fields: [],
@@ -477,18 +521,79 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
 
   const currentProvider = (bill.provider ?? "").toLowerCase();
   const billCountry = (bill.country ?? "BE").toUpperCase();
+  const isBE = billCountry === "BE";
+
+  // BE: look up region from EAN — null if not found (uses stub averages)
+  let beRegion: BeRegion | null = null;
+  if (isBE && bill.ean) {
+    const grdInfo = lookupGrdFromEAN(bill.ean);
+    if (grdInfo) beRegion = grdInfo.region;
+  }
+
+  // BE: resolve meter type ("mono" | "bi")
+  const beMeterType: "mono" | "bi" =
+    /bi|dual|hp|hc|nuit/i.test(bill.meter_type ?? "") ? "bi" : "mono";
+
+  // BE: day/night split
+  let beDay = annualKwh;
+  let beNight = 0;
+  if (isBE && beMeterType === "bi") {
+    if (bill.hp_consumption_kwh != null && bill.hc_consumption_kwh != null) {
+      beDay = bill.hp_consumption_kwh;
+      beNight = bill.hc_consumption_kwh;
+    } else {
+      // Bi-meter, only total known: rough 60/40 split
+      beDay = Math.round(annualKwh * 0.6);
+      beNight = annualKwh - Math.round(annualKwh * 0.6);
+    }
+  }
 
   return getElectricityOffers(billCountry)
     .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
-    .map((offer) => {
-      // supplier_fixed_fee_year is already annual (no × 12 needed)
-      const annualCost = offer.energy_price_day * annualKwh + offer.supplier_fixed_fee_year;
-      const savings = Math.round(currentAnnualCost - annualCost);
+    .map((offer): OfferResult => {
+      if (isBE) {
+        // Belgium: full TVAC comparison using stub BE calc
+        const breakdown = calcBelgiumAnnualTotalTVAC({
+          annualKwhDay: beDay,
+          annualKwhNight: beNight,
+          meterType: beMeterType,
+          supplierEnergyPriceDay: offer.energy_price_day,
+          // fallback to day price if offer has no night price
+          supplierEnergyPriceNight: offer.energy_price_night ?? offer.energy_price_day,
+          supplierFixedFeeAnnual: offer.supplier_fixed_fee_year,
+          region: beRegion,
+          vatRate: 0.06,
+          prosumer: bill.prosumer ?? false,
+          inverterKva: bill.inverter_kva ?? undefined,
+        });
+        const savings = Math.round(currentAnnualCost - breakdown.totalTvac);
+        const savingsPercent =
+          currentAnnualCost > 0
+            ? Math.round((savings / currentAnnualCost) * 100)
+            : 0;
+        return {
+          provider: offer.provider_name,
+          plan: offer.offer_name,
+          estimated_savings: savings,
+          savings_percent: savingsPercent,
+          price_kwh: offer.energy_price_day,
+          type: offer.contract_type,
+          green: false,
+          url: offer.source_url,
+          total_tvac: breakdown.totalTvac,
+          total_htva: breakdown.totalHtva,
+          vat_amount: breakdown.vat,
+          assumptions: breakdown.assumptions,
+        };
+      }
+
+      // Non-BE: supplier cost only (TODO: fix FR full TVAC in Phase 2)
+      const supplierCost = offer.energy_price_day * annualKwh + offer.supplier_fixed_fee_year;
+      const savings = Math.round(currentAnnualCost - supplierCost);
       const savingsPercent =
         currentAnnualCost > 0
           ? Math.round((savings / currentAnnualCost) * 100)
           : 0;
-
       return {
         provider: offer.provider_name,
         plan: offer.offer_name,
