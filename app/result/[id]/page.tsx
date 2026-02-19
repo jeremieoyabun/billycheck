@@ -157,6 +157,20 @@ export default function ResultPage() {
         <>
           <ResultCards data={scan.resultJson} />
 
+          {/* Belgium-specific GRD note */}
+          {scan.resultJson.bill?.country === "BE" && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-[13px] text-blue-800">
+              <p className="font-semibold mb-0.5">🇧🇪 Réseau de distribution (GRD)</p>
+              <p>
+                En Belgique, une grande partie de la facture dépend du GRD (distribution/transport).
+                Billy tient compte de ta région lorsque c'est possible.
+              </p>
+              <p className="mt-1 text-blue-600 text-[12px]">
+                GRD non détecté — certains coûts réseau sont estimés.
+              </p>
+            </div>
+          )}
+
           {/* Extracted data card */}
           {scan.resultJson.bill && (
             <div className="mt-5">

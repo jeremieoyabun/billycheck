@@ -12,7 +12,11 @@
 // this by validating the buffer BEFORE calling pdf-parse.
 
 import OpenAI from "openai";
-import offers from "@/data/offers.json";
+import offersElectricityBE from "@/data/offers-electricity-be.json";
+import offersElectricityFR from "@/data/offers-electricity-fr.json";
+
+// Combined offer pool — compareOffers filters by country
+const offers = [...offersElectricityBE, ...offersElectricityFR];
 
 const ANALYZE_VERSION = "ANALYZE-V9-2026-02-17";
 

@@ -11,6 +11,7 @@ import { ScanCounter } from "@/components/ScanCounter";
 import { BillNotCompatible } from "@/components/BillNotCompatible";
 import { BillTypeModal } from "@/components/BillTypeModal";
 import { VerticalTabs } from "@/components/VerticalTabs";
+import { ManualElectricityForm } from "@/components/ManualElectricityForm";
 import { getClientUserId } from "@/lib/user-id.client";
 import { track } from "@/lib/analytics";
 import type { Vertical } from "@/lib/verticals";
@@ -304,6 +305,16 @@ export default function ScanPage() {
                   <span className="text-emerald-500">✓</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Electricity: manual input option (secondary, below upload) */}
+          {vertical === "electricity" && (
+            <div className="mt-2">
+              <p className="text-[12px] text-slate-400 text-center mb-1">
+                Ou renseigne directement tes données <span aria-hidden="true">↓</span>
+              </p>
+              <ManualElectricityForm />
             </div>
           )}
 

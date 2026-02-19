@@ -10,7 +10,7 @@ export const VERTICALS: { value: Vertical; label: string; emoji: string }[] = [
 
 export const VERTICAL_COPY = {
   electricity: {
-    subtitle:       "Envoie ta facture d'electricite ou saisis tes données pour estimer tes economies.",
+    subtitle:       "Envoie ta facture d'electricite ou saisis tes données pour estimer tes economies potentielles.",
     scanHint:       "Photo, PDF ou capture d'ecran - tout fonctionne.",
     billTypeLabel:  "facture d'electricite",
     manualAvail:    true,

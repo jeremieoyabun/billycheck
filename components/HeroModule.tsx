@@ -39,6 +39,13 @@ export function HeroModule() {
         {vertical === "electricity" ? "⚡" : "📱"} Scanner ma facture
       </Link>
 
+      {/* Manual-form nudge — electricity only, points to form below */}
+      {vertical === "electricity" && (
+        <p className="text-[12px] text-slate-400 -mt-3 text-center">
+          Ou renseigne directement tes données <span aria-hidden="true">↓</span>
+        </p>
+      )}
+
       {/* Microcopy */}
       <p className="text-[13px] text-slate-500 font-medium -mt-2">
         🎁 2 analyses offertes · 🔒 Sans inscription

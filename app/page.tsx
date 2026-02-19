@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Billy } from "@/components/Billy";
 import { FAQ } from "@/components/FAQ";
 import { HeroModule } from "@/components/HeroModule";
+import { WithoutWithBillySection } from "@/components/WithoutWithBillySection";
 
 export default function Home() {
   return (
@@ -75,10 +76,8 @@ export default function Home() {
           <div className="flex justify-center gap-0.5 text-2xl mb-1.5">
             <span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span>
           </div>
-          <div className="font-bold text-sm text-slate-900">Clients satisfaits</div>
-          <div className="text-xs text-slate-500 mt-0.5">
-            Des milliers de factures analysées en France et en Belgique
-          </div>
+          <div className="font-bold text-lg text-slate-900">548 clients satisfaits</div>
+          <div className="text-sm font-semibold text-billy-blue mt-0.5">4,8 / 5</div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -90,7 +89,7 @@ export default function Home() {
               height={28}
               className="object-contain mb-2 opacity-80"
             />
-            <div className="text-xs font-semibold text-slate-600">Vu dans BFMTV</div>
+            <div className="text-xs font-semibold text-slate-600">Vu SUR BFMTV</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
             <Image
@@ -104,6 +103,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Before / After comparison */}
+      <WithoutWithBillySection />
 
       {/* FAQ */}
       <section className="px-5 pb-12 max-w-xl mx-auto">

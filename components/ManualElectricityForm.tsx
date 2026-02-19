@@ -106,10 +106,6 @@ export function ManualElectricityForm() {
 
   return (
     <div className="mt-5 border-t border-slate-200 pt-5">
-      <p className="text-[13px] text-slate-500 text-center mb-4 font-medium">
-        Ou renseigne directement tes données
-      </p>
-
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Field
           id="fixedMonthly"
