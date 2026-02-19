@@ -95,16 +95,16 @@ export default function Home() {
 
         {/* Trust badges row */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Vu dans Paris Match */}
+          {/* Vu dans BFMTV */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
             <Image
-              src="/paris-match-logo.png"
-              alt="Paris Match"
+              src="/BFMTV.svg"
+              alt="BFMTV"
               width={80}
               height={28}
               className="object-contain mb-2 opacity-80"
             />
-            <div className="text-xs font-semibold text-slate-600">Vu dans Paris Match</div>
+            <div className="text-xs font-semibold text-slate-600">Vu dans BFMTV</div>
           </div>
 
           {/* Paiement sécurisé Stripe */}
