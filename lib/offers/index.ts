@@ -48,6 +48,7 @@ export interface TelecomOffer {
   includes_tv: boolean;
   includes_internet: boolean;
   includes_mobile: boolean;
+  promo_bonus: number | null;  // lump-sum first-year discount (negative = savings)
   contract_type: string;
   valid_from: string | null;
   valid_to: string | null;

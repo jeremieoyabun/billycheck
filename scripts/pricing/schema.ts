@@ -91,6 +91,7 @@ export const TelecomRowSchema = z
     includes_tv:        coerceBool,
     includes_internet:  coerceBool,
     includes_mobile:    coerceBool,
+    promo_bonus:        coerceOptNum,
     contract_type:      contractTypeEnum,
     valid_from:         coerceOptDate,
     valid_to:           coerceOptDate,

@@ -78,12 +78,20 @@ function TelecomOfferCard({ offer, rank }: { offer: TelecomOffer; rank: number }
         <span className="bg-slate-100 px-2 py-0.5 rounded-md">
           {fmt(offer.monthly_price_eur)}&nbsp;€/mois
         </span>
+        {offer.data_gb != null && (
+          <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.data_gb}&nbsp;GB</span>
+        )}
         {offer.download_speed_mbps && (
           <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.download_speed_mbps}&nbsp;Mbps</span>
         )}
         {includedItems.map((it) => (
           <span key={it} className="bg-blue-50 px-2 py-0.5 rounded-md text-blue-700">{it}</span>
         ))}
+        {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
+          <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+            Promo {offer.promo_bonus_eur}€
+          </span>
+        )}
       </div>
 
       <a

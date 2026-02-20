@@ -35,9 +35,11 @@ export interface TelecomOffer {
   monthly_price_eur: number;
   plan_type: string;
   download_speed_mbps: number | null;
+  data_gb: number | null;
   includes_tv: boolean;
   includes_internet: boolean;
   includes_mobile: boolean;
+  promo_bonus_eur: number | null;
   estimated_annual_savings: number;
   url: string;
 }
@@ -59,7 +61,7 @@ Objectif: extraire les infos cles du contrat telecom actuel pour comparer avec d
 REGLES STRICTES:
 - N'invente jamais. Si une valeur n'est pas clairement visible, mets null.
 - Identifie le type de contrat: bundle (internet+tv+mobile), internet seul, mobile seul, tv seul.
-- Fournisseurs belges courants: Proximus, Orange, VOO, Scarlet, Telenet, Base, Mobile Vikings.
+- Fournisseurs belges courants: Proximus, Orange, VOO, Scarlet, Telenet, Base, Mobile Vikings, Yoin, hey!, MEGA.
 
 CHAMPS A EXTRAIRE:
 1. "provider": nom du fournisseur telecom
@@ -234,21 +236,31 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
     return offerType === billType;
   }
 
+  const currentAnnual = currentMonthly * 12;
+
   return getTelecomOffers(billCountry)
     .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
     .filter((o) => isCompatible(o.plan_type))
-    .map((o) => ({
-      provider:                 o.provider_name,
-      plan:                     o.offer_name,
-      monthly_price_eur:        o.monthly_price_eur,
-      plan_type:                o.plan_type,
-      download_speed_mbps:      o.download_speed_mbps,
-      includes_tv:              o.includes_tv,
-      includes_internet:        o.includes_internet,
-      includes_mobile:          o.includes_mobile,
-      estimated_annual_savings: Math.round((currentMonthly - o.monthly_price_eur) * 12),
-      url:                      o.source_url,
-    }))
+    .map((o) => {
+      const promoBonus = o.promo_bonus ?? 0; // negative = discount
+      const offerAnnualCost = o.monthly_price_eur * 12 + promoBonus;
+      const savings = Math.round(currentAnnual - offerAnnualCost);
+
+      return {
+        provider:                 o.provider_name,
+        plan:                     o.offer_name,
+        monthly_price_eur:        o.monthly_price_eur,
+        plan_type:                o.plan_type,
+        download_speed_mbps:      o.download_speed_mbps,
+        data_gb:                  o.data_gb,
+        includes_tv:              o.includes_tv,
+        includes_internet:        o.includes_internet,
+        includes_mobile:          o.includes_mobile,
+        promo_bonus_eur:          promoBonus !== 0 ? promoBonus : null,
+        estimated_annual_savings: savings,
+        url:                      o.source_url,
+      };
+    })
     .filter((o) => o.estimated_annual_savings > 10)
     .sort((a, b) => b.estimated_annual_savings - a.estimated_annual_savings)
     .slice(0, 3);
