@@ -16,8 +16,8 @@ export default function QuiSommesNousPage() {
           <p className="text-sm text-slate-500 mb-3">Qui sommes-nous</p>
 
           <h1 className="font-display font-black text-[clamp(30px,6vw,48px)] leading-tight">
-            Télécom et Électricite{" "}
-            <span className="text-billy-blue">moins chers</span>.
+            Nous rendons la comparaison de vos factures avec les offres actuelles{" "}
+            <span className="text-billy-blue">plus simple</span>.
           </h1>
 
           <p className="mt-5 text-[17px] sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
