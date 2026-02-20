@@ -4,10 +4,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { compareOffers } from "@/lib/analyze-bill";
 import type { ExtractedBill } from "@/lib/analyze-bill";
+import { calcBelgiumAnnualTotalTVAC } from "@/lib/pricing/be/calc";
 
 /* ──────────────────────────────────────────────
    Build a fake ExtractedBill from manual inputs
    so the same compareOffers() pipeline applies.
+
+   IMPORTANT: the total must include network + tax stubs
+   (same as compareOffers uses) so the savings comparison
+   is coherent. Otherwise savings = supplier-only vs
+   (supplier + network + taxes) → always negative.
    ────────────────────────────────────────────── */
 function buildManualExtractedBill(
   fixedMonthly: number,
@@ -15,10 +21,19 @@ function buildManualExtractedBill(
   consumptionKwh: number
 ): ExtractedBill {
   const subscriptionAnnual = fixedMonthly * 12;
-  const energyCost = priceKwh * consumptionKwh;
-  const htva = subscriptionAnnual + energyCost;
-  // Belgium: flat 6% TVA on electricity
-  const ttc = Math.round(htva * 1.06 * 100) / 100;
+
+  // Use the same calc engine as compareOffers to build a comparable total.
+  // This ensures the fake bill total includes network + tax stubs.
+  const breakdown = calcBelgiumAnnualTotalTVAC({
+    annualKwhDay: consumptionKwh,
+    annualKwhNight: 0,
+    meterType: "mono",
+    supplierEnergyPriceDay: priceKwh,
+    supplierEnergyPriceNight: priceKwh,
+    supplierFixedFeeAnnual: subscriptionAnnual,
+    region: null, // national average stubs
+    vatRate: 0.06,
+  });
 
   return {
     provider: null,
@@ -34,8 +49,8 @@ function buildManualExtractedBill(
     energy_unit_price_eur_kwh: priceKwh,
     consumption_kwh_annual: consumptionKwh,
     subscription_annual_ht_eur: subscriptionAnnual,
-    total_annual_htva_eur: htva,
-    total_annual_ttc_eur: ttc,
+    total_annual_htva_eur: breakdown.totalHtva,
+    total_annual_ttc_eur: breakdown.totalTvac,
 
     hp_unit_price_eur_kwh: null,
     hc_unit_price_eur_kwh: null,

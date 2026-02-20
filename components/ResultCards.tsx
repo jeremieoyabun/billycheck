@@ -65,6 +65,7 @@ export interface Offer {
   type: string;
   green?: boolean;
   url?: string;
+  promo_bonus_eur?: number | null;
   // Belgium-specific breakdown
   total_tvac?: number;
   total_htva?: number;
@@ -165,6 +166,11 @@ function OfferCard({
         <span className="bg-slate-100 px-2 py-0.5 rounded-md">~{offer.price_kwh}€/kWh HTVA</span>
         <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.type}</span>
         {offer.green && <span className="bg-emerald-50 px-2 py-0.5 rounded-md">🌱 Vert</span>}
+        {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
+          <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+            Promo {offer.promo_bonus_eur}€
+          </span>
+        )}
       </div>
 
       {/* CTA */}

@@ -81,6 +81,8 @@ export interface OfferResult {
   type: string;
   green: boolean;
   url: string;
+  // Promo bonus (negative = discount, HTVA). Null if none.
+  promo_bonus_eur?: number | null;
   // Belgium-specific breakdown (present when country === "BE")
   total_tvac?: number;
   total_htva?: number;
@@ -748,6 +750,7 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
     .map((offer): OfferResult => {
       if (isBE) {
         // Belgium: full TVAC comparison (energy + network + taxes)
+        const input_vatRate = 0.06; // 6% residential; TODO: detect 21% for pro
         const breakdown = calcBelgiumAnnualTotalTVAC({
           annualKwhDay: beDay,
           annualKwhNight: beNight,
@@ -756,15 +759,27 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
           supplierEnergyPriceNight: offer.energy_price_night ?? offer.energy_price_day,
           supplierFixedFeeAnnual: offer.supplier_fixed_fee_year,
           region: beRegion,
-          vatRate: 0.06,
+          vatRate: input_vatRate,
         });
-        // Add non-switchable prosumer on top
-        const offerTotalTvac = Math.round((breakdown.totalTvac + prosumerAnnual) * 100) / 100;
+        // promo_bonus is HTVA (from tariff sheets) — apply TVA to get TVAC impact
+        const promoHtva = offer.promo_bonus ?? 0; // negative = discount
+        const promoTvac = Math.round(promoHtva * (1 + (input_vatRate)) * 100) / 100;
+
+        // Add non-switchable prosumer + promo on top
+        const offerTotalTvac = Math.round((breakdown.totalTvac + prosumerAnnual + promoTvac) * 100) / 100;
         const savings = Math.round(currentAnnualCost - offerTotalTvac);
         const savingsPercent =
           currentAnnualCost > 0
             ? Math.round((savings / currentAnnualCost) * 100)
             : 0;
+
+        const promoAssumptions: string[] = [];
+        if (promoHtva < 0) {
+          promoAssumptions.push(
+            `Promo 1ère année incluse : ${Math.abs(promoHtva).toFixed(0)}€ HTVA de réduction (${Math.abs(promoTvac).toFixed(0)}€ TVAC)`
+          );
+        }
+
         return {
           provider: offer.provider_name,
           plan: offer.offer_name,
@@ -774,15 +789,17 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
           type: offer.contract_type,
           green: false,
           url: offer.source_url,
+          promo_bonus_eur: promoHtva !== 0 ? promoHtva : null,
           total_tvac: offerTotalTvac,
           total_htva: breakdown.totalHtva,
           vat_amount: breakdown.vat,
-          assumptions: [...breakdown.assumptions, ...prosumerAssumptions],
+          assumptions: [...breakdown.assumptions, ...prosumerAssumptions, ...promoAssumptions],
         };
       }
 
       // Non-BE: supplier cost only (TODO: fix FR full TVAC in Phase 2)
-      const supplierCost = offer.energy_price_day * annualKwh + offer.supplier_fixed_fee_year;
+      const promoBonus = offer.promo_bonus ?? 0;
+      const supplierCost = offer.energy_price_day * annualKwh + offer.supplier_fixed_fee_year + promoBonus;
       const savings = Math.round(currentAnnualCost - supplierCost);
       const savingsPercent =
         currentAnnualCost > 0
@@ -797,6 +814,7 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
         type: offer.contract_type,
         green: false,
         url: offer.source_url,
+        promo_bonus_eur: promoBonus !== 0 ? promoBonus : null,
       };
     })
     .filter((o) => o.estimated_savings > 10)

@@ -13,7 +13,6 @@ export const PARTNER_PROVIDERS = {
       "elegant",
       "frank_energie",
       "energie_be",
-      "bolt",
     ]),
     // FR: no partner filtering yet — all providers are shown
   },
