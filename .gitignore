@@ -45,6 +45,9 @@ next-env.d.ts
 .vercel
 .env*.local
 
+# pricing sync cache
+scripts/pricing/.cache/
+
 app/mnt/
 src/app/mnt/
 mnt/
