@@ -228,12 +228,28 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
   const billCountry = (bill.country ?? "BE").toUpperCase();
   const billType = bill.plan_type ?? "bundle";
 
-  // Compatible offer types: bundle is compatible with everything;
-  // specific types only match themselves or bundle
+  // Strict type matching: internet↔internet, mobile↔mobile, bundle↔bundle
+  // tv↔tv. No cross-type comparisons.
   function isCompatible(offerType: string): boolean {
-    if (billType === "bundle") return true;
-    if (offerType === "bundle") return true;
     return offerType === billType;
+  }
+
+  // For mobile: only show offers with at least 70% of user's data
+  const billDataGb = bill.mobile_data_gb;
+  function hasComparableData(offer: { data_gb: number | null }): boolean {
+    if (billType !== "mobile") return true;
+    if (!billDataGb || billDataGb <= 0) return true; // unknown data → show all
+    if (!offer.data_gb) return false;
+    return offer.data_gb >= billDataGb * 0.7;
+  }
+
+  // For internet: only show offers with at least comparable speed
+  const billSpeed = bill.download_speed_mbps;
+  function hasComparableSpeed(offer: { download_speed_mbps: number | null }): boolean {
+    if (billType !== "internet") return true;
+    if (!billSpeed || billSpeed <= 0) return true; // unknown speed → show all
+    if (!offer.download_speed_mbps) return true; // offer speed unknown → include it
+    return offer.download_speed_mbps >= billSpeed * 0.7;
   }
 
   const currentAnnual = currentMonthly * 12;
@@ -241,6 +257,8 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
   return getTelecomOffers(billCountry)
     .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
     .filter((o) => isCompatible(o.plan_type))
+    .filter((o) => hasComparableData(o))
+    .filter((o) => hasComparableSpeed(o))
     .map((o) => {
       const promoBonus = o.promo_bonus ?? 0; // negative = discount
       const offerAnnualCost = o.monthly_price_eur * 12 + promoBonus;

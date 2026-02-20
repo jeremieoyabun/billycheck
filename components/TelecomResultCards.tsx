@@ -24,6 +24,16 @@ const fmt = (n: number | null | undefined, dec = 2) =>
     ? n.toLocaleString("fr-BE", { minimumFractionDigits: dec, maximumFractionDigits: dec })
     : "-";
 
+const planTypeLabel = (t: string | null | undefined) => {
+  switch (t) {
+    case "mobile":   return "mobile";
+    case "internet": return "internet";
+    case "tv":       return "TV";
+    case "bundle":   return "pack";
+    default:         return "telecom";
+  }
+};
+
 /* ──────────────────────────────────────────────
    Offer card
    ────────────────────────────────────────────── */
@@ -170,11 +180,13 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
         ) : hasOffers ? (
           <>
             <ChatBubble>
-              <strong>J'ai trouve des forfaits potentiellement plus avantageux !</strong> 📱
+              <strong>J'ai trouve des offres {planTypeLabel(telecom.plan_type)} potentiellement plus avantageuses !</strong>{" "}
+              {telecom.plan_type === "mobile" ? "📱" : telecom.plan_type === "internet" ? "🌐" : "📦"}
             </ChatBubble>
             <ChatBubble delay={300}>
-              D'apres ta facture telecom, tu paies actuellement{" "}
-              <strong>{fmt(telecom.monthly_price_ttc_eur)}&nbsp;€/mois</strong>.
+              D'apres ta facture, tu paies actuellement{" "}
+              <strong>{fmt(telecom.monthly_price_ttc_eur)}&nbsp;€/mois</strong>{" "}
+              pour ton forfait {planTypeLabel(telecom.plan_type)}.
               Voici ce que j'ai repere.
             </ChatBubble>
           </>
@@ -184,7 +196,8 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
               <strong>Bonne nouvelle ! 👍</strong>
             </ChatBubble>
             <ChatBubble delay={300}>
-              Ton forfait telecom semble deja competitif par rapport aux offres actuelles.
+              Ton forfait {planTypeLabel(telecom.plan_type)} semble deja competitif
+              par rapport aux offres {planTypeLabel(telecom.plan_type)} actuelles.
               Reviens dans quelques mois, les offres evoluent souvent.
             </ChatBubble>
           </>
@@ -207,12 +220,21 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
                 : "Non detecte"}
               mono
             />
-            <Field
-              label="Debit internet"
-              value={telecom.download_speed_mbps != null
-                ? `${telecom.download_speed_mbps} Mbps`
-                : "-"}
-            />
+            {telecom.plan_type === "mobile" ? (
+              <Field
+                label="Data mobile"
+                value={telecom.mobile_data_gb != null && telecom.mobile_data_gb > 0
+                  ? `${telecom.mobile_data_gb} GB`
+                  : "-"}
+              />
+            ) : (
+              <Field
+                label="Debit internet"
+                value={telecom.download_speed_mbps != null && telecom.download_speed_mbps > 0
+                  ? `${telecom.download_speed_mbps} Mbps`
+                  : "-"}
+              />
+            )}
           </div>
 
           {/* Included services */}
