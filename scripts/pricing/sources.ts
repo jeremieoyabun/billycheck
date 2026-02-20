@@ -1,16 +1,13 @@
 // scripts/pricing/sources.ts
 //
 // Registry mapping each partner adapter to its target JSON file + schema type.
+// Phase 1: MEGA + Octa+ electricity BE only.
 
 import type { PartnerAdapter } from "./adapters/_types";
 import type { ElectricityRow, TelecomRow } from "./schema";
 
-import { megaTelecomBeAdapter } from "./adapters/mega-telecom-be";
-import { orangeTelecomBeAdapter } from "./adapters/orange-telecom-be";
-import { totalenergiesElecFrAdapter } from "./adapters/totalenergies-elec-fr";
-import { totalenergiesElecBeAdapter } from "./adapters/totalenergies-elec-be";
 import { megaElecBeAdapter } from "./adapters/mega-elec-be";
-import { boltElecBeAdapter } from "./adapters/bolt-elec-be";
+import { octaElecBeAdapter } from "./adapters/octa-elec-be";
 
 export type SchemaType = "electricity" | "telecom";
 
@@ -28,35 +25,7 @@ export interface PartnerSource {
 }
 
 export const PARTNER_SOURCES: PartnerSource[] = [
-  {
-    adapter: megaTelecomBeAdapter,
-    targetFile: "offers-telecom-be.json",
-    schemaType: "telecom",
-    providerIds: ["mega"],
-    enabled: true,
-  },
-  {
-    adapter: orangeTelecomBeAdapter,
-    targetFile: "offers-telecom-be.json",
-    schemaType: "telecom",
-    providerIds: ["orange"],
-    enabled: true,
-    crawlDelayMs: 10_000,
-  },
-  {
-    adapter: totalenergiesElecFrAdapter,
-    targetFile: "offers-electricity-fr.json",
-    schemaType: "electricity",
-    providerIds: ["totalenergies_fr"],
-    enabled: true,
-  },
-  {
-    adapter: totalenergiesElecBeAdapter,
-    targetFile: "offers-electricity-be.json",
-    schemaType: "electricity",
-    providerIds: ["totalenergies"],
-    enabled: true,
-  },
+  // ── Phase 1: Belgium electricity ──
   {
     adapter: megaElecBeAdapter,
     targetFile: "offers-electricity-be.json",
@@ -65,10 +34,10 @@ export const PARTNER_SOURCES: PartnerSource[] = [
     enabled: true,
   },
   {
-    adapter: boltElecBeAdapter,
+    adapter: octaElecBeAdapter,
     targetFile: "offers-electricity-be.json",
     schemaType: "electricity",
-    providerIds: ["bolt"],
+    providerIds: ["octa_plus"],
     enabled: true,
   },
 ];
