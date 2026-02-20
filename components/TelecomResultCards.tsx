@@ -37,7 +37,7 @@ const planTypeLabel = (t: string | null | undefined) => {
 /* ──────────────────────────────────────────────
    Offer card
    ────────────────────────────────────────────── */
-function TelecomOfferCard({ offer, rank }: { offer: TelecomOffer; rank: number }) {
+function TelecomOfferCard({ offer, rank, mobileLines }: { offer: TelecomOffer; rank: number; mobileLines: number }) {
   const medals = ["🥇", "🥈", "🥉"];
   const clr =
     offer.estimated_annual_savings > 200 ? "text-emerald-600"
@@ -86,7 +86,7 @@ function TelecomOfferCard({ offer, rank }: { offer: TelecomOffer; rank: number }
       {/* Details */}
       <div className="flex gap-1.5 flex-wrap text-xs text-slate-500 mb-3.5">
         <span className="bg-slate-100 px-2 py-0.5 rounded-md">
-          {fmt(offer.monthly_price_eur)}&nbsp;€/mois
+          {fmt(offer.monthly_price_eur)}&nbsp;€/mois{mobileLines > 1 ? ` × ${mobileLines} lignes` : ""}
         </span>
         {offer.data_gb != null && (
           <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.data_gb}&nbsp;GB</span>
@@ -235,6 +235,9 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
                   : "-"}
               />
             )}
+            {telecom.mobile_lines != null && telecom.mobile_lines > 1 && (
+              <Field label="Lignes mobiles" value={`${telecom.mobile_lines} lignes`} />
+            )}
           </div>
 
           {/* Included services */}
@@ -270,7 +273,7 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <TelecomOfferCard key={i} offer={o} rank={i} />
+              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} />
             ))}
           </div>
         </>

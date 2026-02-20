@@ -16,6 +16,7 @@ export interface ExtractedTelecomBill {
 
   download_speed_mbps: number | null;
   mobile_data_gb: number | null;
+  mobile_lines: number | null;
 
   includes_tv: boolean;
   includes_internet: boolean;
@@ -70,12 +71,13 @@ CHAMPS A EXTRAIRE:
 4. "monthly_price_ttc_eur": montant mensuel total TTC paye (€/mois). Cherche "Montant total", "Total TTC", "Votre facture", "Prix mensuel".
 5. "download_speed_mbps": debit internet en Mbps si present (ex: 200, 500, 1000). Sinon null.
 6. "mobile_data_gb": volume data mobile en GB si present. Sinon null.
-7. "includes_tv": true si TV est incluse dans l'offre
-8. "includes_internet": true si internet est inclus
-9. "includes_mobile": true si telephonie mobile est incluse
-10. "billing_period_start": date debut periode au format "YYYY-MM-DD". Sinon null.
-11. "billing_period_end": date fin periode au format "YYYY-MM-DD". Sinon null.
-12. "country": pays deduit du document ("BE" pour Belgique)
+7. "mobile_lines": nombre de lignes telephoniques mobiles sur la facture (ex: 2 numeros = 2). Si une seule ligne ou pas de mobile, mets 1 ou null.
+9. "includes_tv": true si TV est incluse dans l'offre
+10. "includes_internet": true si internet est inclus
+11. "includes_mobile": true si telephonie mobile est incluse
+12. "billing_period_start": date debut periode au format "YYYY-MM-DD". Sinon null.
+13. "billing_period_end": date fin periode au format "YYYY-MM-DD". Sinon null.
+14. "country": pays deduit du document ("BE" pour Belgique)
 
 Schema EXACT a retourner:
 {
@@ -85,6 +87,7 @@ Schema EXACT a retourner:
   "monthly_price_ttc_eur": number|null,
   "download_speed_mbps": number|null,
   "mobile_data_gb": number|null,
+  "mobile_lines": number|null,
   "includes_tv": boolean,
   "includes_internet": boolean,
   "includes_mobile": boolean,
@@ -148,6 +151,7 @@ function parseGPTTelecomResponse(raw: string): ExtractedTelecomBill {
 
     download_speed_mbps: numOrNull(data.download_speed_mbps),
     mobile_data_gb:      numOrNull(data.mobile_data_gb),
+    mobile_lines:        numOrNull(data.mobile_lines),
 
     includes_tv:       Boolean(data.includes_tv),
     includes_internet: Boolean(data.includes_internet),
@@ -252,6 +256,12 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
     return offer.download_speed_mbps >= billSpeed * 0.7;
   }
 
+  // For mobile plans with multiple lines, the bill total covers N lines.
+  // Offer prices are per-line, so multiply by number of lines.
+  const mobileLines = (billType === "mobile" && bill.mobile_lines && bill.mobile_lines > 1)
+    ? bill.mobile_lines
+    : 1;
+
   const currentAnnual = currentMonthly * 12;
 
   return getTelecomOffers(billCountry)
@@ -261,7 +271,8 @@ export function compareTelecomOffers(bill: ExtractedTelecomBill): TelecomOffer[]
     .filter((o) => hasComparableSpeed(o))
     .map((o) => {
       const promoBonus = o.promo_bonus ?? 0; // negative = discount
-      const offerAnnualCost = o.monthly_price_eur * 12 + promoBonus;
+      // Multiply per-line price by number of lines
+      const offerAnnualCost = (o.monthly_price_eur * mobileLines) * 12 + (promoBonus * mobileLines);
       const savings = Math.round(currentAnnual - offerAnnualCost);
 
       return {
