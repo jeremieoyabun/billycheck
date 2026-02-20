@@ -47,6 +47,7 @@ export interface ExtractedBill {
   prosumer_period_days?: number | null;
   prosumer_annual_eur?: number | null;
   inverter_kva?: number | null;
+  bill_type?: "regularisation" | "acompte" | "intermediaire" | "unknown" | null;
 
   // Legacy fallback
   total_amount_eur?: number | null;
@@ -225,6 +226,18 @@ export function ResultCards({ data }: ResultCardsProps) {
               {bill.billing_period ? ` (${bill.billing_period})` : ""}.
               Pour comparer les offres, j'ai besoin d'une <strong>facture annuelle de régularisation</strong> (sur 12 mois)
               avec le détail des coûts sur l'année complète.
+            </ChatBubble>
+          </>
+        ) : bill.bill_type === "acompte" ? (
+          <>
+            <ChatBubble>
+              <strong>Ceci est une facture d'acompte (avance).</strong> 📄
+            </ChatBubble>
+            <ChatBubble delay={300}>
+              Un acompte est un montant forfaitaire payé chaque mois — il ne reflète pas
+              ta consommation réelle. Pour comparer les offres, j'ai besoin de ta{" "}
+              <strong>facture de régularisation annuelle</strong> (décompte annuel / afrekening)
+              qui contient le détail de ta consommation et des coûts réels.
             </ChatBubble>
           </>
         ) : bill.needs_full_annual_invoice ? (

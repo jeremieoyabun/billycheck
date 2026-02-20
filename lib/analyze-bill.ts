@@ -68,6 +68,9 @@ export interface ExtractedBill {
   prosumer_annual_eur?: number | null;    // = amount / days * 365 (non-switchable)
   inverter_kva?: number | null;           // informational only
 
+  // Bill classification
+  bill_type?: "regularisation" | "acompte" | "intermediaire" | "unknown" | null;
+
   extraction_mode?: "image_vision" | "pdf_text";
   pdf_text_length?: number;
 }
@@ -177,6 +180,17 @@ IMPORTANT — CHAMPS CRITIQUES:
 13) "meter_type": Type de compteur électrique. Retourne "mono" pour un compteur mono-horaire
     (tarif unique), ou "bi" pour un compteur bi-horaire (HP/HC, jour/nuit). Sinon null.
 
+14) "bill_type": Type de facture. IMPORTANT pour la fiabilité des résultats.
+    "regularisation" : facture de régularisation / décompte annuel / afrekening / jaarafrekening.
+      Indices : "régularisation", "afrekening", "décompte annuel", "facture de clôture",
+      "relevé d'index", index compteur ancien/nouveau, ventilation énergie/réseau/taxes.
+    "acompte" : facture d'acompte / avance / provision / voorschot / maandelijks voorschot.
+      Indices : "acompte", "avance", "voorschot", "provision", "maandbedrag",
+      montant fixe sans détail de consommation réelle, pas d'index compteur.
+    "intermediaire" : facture intermédiaire / tussentijdse factuur.
+    "unknown" : si tu ne peux pas déterminer le type.
+    ⚠️ Si c'est un acompte, les champs de consommation et de détail seront probablement null — c'est normal.
+
 Schéma EXACT:
 {
   "provider": string|null,
@@ -203,7 +217,8 @@ Schéma EXACT:
   "prosumer_detected": boolean,
   "prosumer_amount_eur": number|null,
   "prosumer_period_days": number|null,
-  "inverter_kva": number|null
+  "inverter_kva": number|null,
+  "bill_type": "regularisation"|"acompte"|"intermediaire"|"unknown"
 }
 
 Si ce n'est pas une facture d'électricité, retourne tous les champs à null.`;
@@ -337,6 +352,41 @@ function computePeriodDays(start: string | null, end: string | null): number | n
 
 const MIN_ANNUAL_PERIOD_DAYS = 300;
 
+type BillType = "regularisation" | "acompte" | "intermediaire" | "unknown";
+
+const VALID_BILL_TYPES = new Set<BillType>(["regularisation", "acompte", "intermediaire", "unknown"]);
+
+/**
+ * Detect bill type from GPT output + heuristic fallback.
+ *
+ * Priority:
+ * 1. GPT's explicit bill_type field (if valid)
+ * 2. Heuristic: if GPT returned a total but no consumption/price breakdown,
+ *    the bill is likely an acompte (fixed monthly advance, no real kWh data).
+ */
+function detectBillType(
+  data: Record<string, unknown>,
+  extracted: { rawKwh: number | null; hpKwh: number | null; hcKwh: number | null; htva: number | null },
+): BillType | null {
+  // 1. Trust GPT if it returned a valid value
+  const gptType = (data.bill_type as string ?? "").toLowerCase().trim() as BillType;
+  if (VALID_BILL_TYPES.has(gptType)) {
+    console.log(`[analyze] GPT bill_type: "${gptType}"`);
+    return gptType;
+  }
+
+  // 2. Heuristic fallback: acompte = total exists but no consumption detail
+  const hasTotal = extracted.htva != null;
+  const hasAnyKwh = extracted.rawKwh != null || extracted.hpKwh != null || extracted.hcKwh != null;
+
+  if (hasTotal && !hasAnyKwh) {
+    console.warn(`[analyze] HEURISTIC: total exists but no kWh → likely acompte`);
+    return "acompte";
+  }
+
+  return null; // unknown — GPT didn't say, heuristic inconclusive
+}
+
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
@@ -375,12 +425,23 @@ function validateExtraction(bill: ExtractedBill): ExtractedBill {
 
   // Monthly/short-period bills always need a full annual invoice
   const isMonthly = bill.is_monthly_bill === true;
-  const needsAnnual = isMonthly || confidence === "insufficient";
+
+  // Acompte = advance payment, no real consumption data → cannot compare offers
+  const isAcompte = bill.bill_type === "acompte";
+  if (isAcompte) {
+    console.log(`[analyze] ACOMPTE detected → needs full annual invoice (régularisation)`);
+  }
+
+  const needsAnnual = isMonthly || isAcompte || confidence === "insufficient";
+
+  const finalMissing = [...missing];
+  if (isMonthly) finalMissing.push("facture_annuelle_requise");
+  if (isAcompte) finalMissing.push("facture_acompte_detectee");
 
   return {
     ...bill,
-    missing_fields: isMonthly ? [...missing, "facture_annuelle_requise"] : missing,
-    confidence: isMonthly ? "insufficient" : confidence,
+    missing_fields: finalMissing,
+    confidence: (isMonthly || isAcompte) ? "insufficient" : confidence,
     needs_full_annual_invoice: needsAnnual,
     is_monthly_bill: isMonthly,
   };
@@ -522,6 +583,9 @@ function parseGPTResponse(raw: string): ExtractedBill {
     prosumer_period_days: prosumerPeriodDays,
     prosumer_annual_eur: prosumerAnnualEur,
     inverter_kva: inverterKva,
+
+    // Bill type: GPT detection + heuristic fallback
+    bill_type: detectBillType(data, { rawKwh, hpKwh, hcKwh, htva }),
 
     confidence: "insufficient",
     missing_fields: [],
