@@ -15,7 +15,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.proximus.be"
+    "source_url": "https://www.proximus.be",
+    "active": false
   },
   {
     "provider_id": "proximus",
@@ -33,7 +34,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.proximus.be"
+    "source_url": "https://www.proximus.be",
+    "active": false
   },
   {
     "provider_id": "orange",
@@ -51,7 +53,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.orange.be"
+    "source_url": "https://www.orange.be",
+    "active": true
   },
   {
     "provider_id": "orange",
@@ -69,7 +72,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.orange.be"
+    "source_url": "https://www.orange.be",
+    "active": true
   },
   {
     "provider_id": "voo",
@@ -87,7 +91,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.voo.be"
+    "source_url": "https://www.voo.be",
+    "active": false
   },
   {
     "provider_id": "scarlet",
@@ -105,7 +110,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.scarlet.be"
+    "source_url": "https://www.scarlet.be",
+    "active": false
   },
   {
     "provider_id": "telenet",
@@ -123,7 +129,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.telenet.be"
+    "source_url": "https://www.telenet.be",
+    "active": false
   },
   {
     "provider_id": "edpnet",
@@ -141,6 +148,7 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.edpnet.be"
+    "source_url": "https://www.edpnet.be",
+    "active": false
   }
 ]

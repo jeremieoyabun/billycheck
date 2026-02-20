@@ -13,7 +13,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.totalenergies.be"
+    "source_url": "https://www.totalenergies.be",
+    "active": false
   },
   {
     "provider_id": "luminus",
@@ -29,7 +30,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.luminus.be"
+    "source_url": "https://www.luminus.be",
+    "active": false
   },
   {
     "provider_id": "eneco",
@@ -45,7 +47,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.eneco.be"
+    "source_url": "https://www.eneco.be",
+    "active": false
   },
   {
     "provider_id": "bolt",
@@ -61,7 +64,8 @@
     "contract_type": "VARIABLE",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.boltenergie.be"
+    "source_url": "https://www.boltenergie.be",
+    "active": true
   },
   {
     "provider_id": "engie",
@@ -77,7 +81,8 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.engie.be"
+    "source_url": "https://www.engie.be",
+    "active": false
   },
   {
     "provider_id": "mega",
@@ -93,7 +98,8 @@
     "contract_type": "VARIABLE",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.mega.be"
+    "source_url": "https://www.mega.be",
+    "active": true
   },
   {
     "provider_id": "octa_plus",
@@ -109,6 +115,7 @@
     "contract_type": "FIXED",
     "valid_from": null,
     "valid_to": null,
-    "source_url": "https://www.octaplus.be"
+    "source_url": "https://www.octaplus.be",
+    "active": true
   }
 ]

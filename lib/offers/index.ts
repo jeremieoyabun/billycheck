@@ -2,10 +2,15 @@
 //
 // Unified typed API for all market offer data.
 // Source files live in /data — updated via scripts/pricing/sync.ts.
+//
+// IMPORTANT: Only partner offers are returned. Non-partner offers
+// are filtered out by both the `active` flag and the allowlist
+// in lib/offers/partners.ts.
 
 import electricityBERaw from "@/data/offers-electricity-be.json";
 import electricityFRRaw from "@/data/offers-electricity-fr.json";
 import telecomBERaw from "@/data/offers-telecom-be.json";
+import { isPartner, warnNonPartnerOffers } from "./partners";
 
 /* ──────────────────────────────────────────────
    Types
@@ -50,26 +55,46 @@ export interface TelecomOffer {
 }
 
 /* ──────────────────────────────────────────────
-   Accessors
+   Raw row type (includes optional active flag)
    ────────────────────────────────────────────── */
 
-type ElectricityRow = Omit<ElectricityOffer, "country">;
-type TelecomRow     = Omit<TelecomOffer, "country">;
+type ElectricityRow = Omit<ElectricityOffer, "country"> & { active?: boolean };
+type TelecomRow     = Omit<TelecomOffer, "country"> & { active?: boolean };
 
-const ELECTRICITY_BE = (electricityBERaw as ElectricityRow[]).map(
-  (o): ElectricityOffer => ({ ...o, country: "BE" })
-);
+/* ──────────────────────────────────────────────
+   Build filtered offer lists (runs once at import time)
+   ────────────────────────────────────────────── */
 
-const ELECTRICITY_FR = (electricityFRRaw as ElectricityRow[]).map(
-  (o): ElectricityOffer => ({ ...o, country: "FR" })
-);
+function buildElectricity(raw: ElectricityRow[], country: string): ElectricityOffer[] {
+  // Log non-partner regressions (active rows not in allowlist)
+  warnNonPartnerOffers(raw, "electricity", country);
 
-const TELECOM_BE = (telecomBERaw as TelecomRow[]).map(
-  (o): TelecomOffer => ({ ...o, country: "BE" })
-);
+  return raw
+    .filter((o) => o.active !== false)
+    .filter((o) => isPartner("electricity", country, o.provider_id))
+    .map(({ active: _active, ...o }): ElectricityOffer => ({ ...o, country }));
+}
+
+function buildTelecom(raw: TelecomRow[], country: string): TelecomOffer[] {
+  warnNonPartnerOffers(raw, "telecom", country);
+
+  return raw
+    .filter((o) => o.active !== false)
+    .filter((o) => isPartner("telecom", country, o.provider_id))
+    .map(({ active: _active, ...o }): TelecomOffer => ({ ...o, country }));
+}
+
+const ELECTRICITY_BE = buildElectricity(electricityBERaw as ElectricityRow[], "BE");
+const ELECTRICITY_FR = buildElectricity(electricityFRRaw as ElectricityRow[], "FR");
+const TELECOM_BE     = buildTelecom(telecomBERaw as TelecomRow[], "BE");
+
+/* ──────────────────────────────────────────────
+   Public API
+   ────────────────────────────────────────────── */
 
 /**
  * Return electricity offers, optionally filtered by ISO country code ("BE", "FR").
+ * Only active partner offers are returned.
  */
 export function getElectricityOffers(country?: string): ElectricityOffer[] {
   const all = [...ELECTRICITY_BE, ...ELECTRICITY_FR];
@@ -80,6 +105,7 @@ export function getElectricityOffers(country?: string): ElectricityOffer[] {
 
 /**
  * Return telecom offers, optionally filtered by ISO country code.
+ * Only active partner offers are returned.
  */
 export function getTelecomOffers(country?: string): TelecomOffer[] {
   if (!country) return TELECOM_BE;
