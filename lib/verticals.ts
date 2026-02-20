@@ -17,7 +17,7 @@ export const VERTICAL_COPY = {
   },
   telecom: {
     subtitle:       "Envoie ta facture telecom pour reperer une offre plus avantageuse.",
-    scanHint:       "Pour les Telecom, le scan est recommandé.",
+    scanHint:       "Pour les Télécom, le scan est recommandé.",
     billTypeLabel:  "facture telecom",
     manualAvail:    false,
   },

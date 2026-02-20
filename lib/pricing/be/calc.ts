@@ -1,6 +1,6 @@
 // lib/pricing/be/calc.ts
 //
-// MVP Belgium TVAC annual cost calculator.
+// Belgium TVAC annual cost calculator (switchable costs only).
 //
 // Formula:
 //   A = Energy cost HTVA   (supplier: kWh price × consumption + fixed fee)
@@ -9,6 +9,9 @@
 //   Total HTVA = A + B + C
 //   TVA = Total HTVA × vatRate (default 6% for residential electricity in BE)
 //   Total TVAC = Total HTVA + TVA
+//
+// NOTE: Prosumer surcharge is NON-SWITCHABLE (same for all suppliers).
+// It is extracted from the bill and added in compareOffers(), not here.
 //
 // All network/tax values are stubs — replace with official GRD tariff tables.
 // A disclaimer flag is set whenever stubs are used.
@@ -29,16 +32,13 @@ export interface BelgiumCalcInput {
   // Context
   region: BeRegion | null;
   vatRate?: number;               // default 0.06 (6%)
-
-  // Optional prosumer
-  prosumer?: boolean;
-  inverterKva?: number;
 }
 
 export interface BelgiumCalcBreakdown {
   energyHtva: number;       // A: supplier energy
   networkHtva: number;      // B: GRD distribution+transport (estimated)
   taxesHtva: number;        // C: levies (estimated)
+  prosumerHtva: number;     // D: prosumer surcharge (0 if not applicable)
   totalHtva: number;
   vat: number;
   totalTvac: number;
@@ -96,10 +96,7 @@ export function calcBelgiumAnnualTotalTVAC(
 
   assumptions.push("Taxes et prélèvements estimés — valeurs indicatives CREG 2024");
 
-  // Prosumer surcharge stub
-  if (input.prosumer && input.inverterKva && input.inverterKva > 0) {
-    assumptions.push(`Prosumer (${input.inverterKva} kVA) détecté — surcharge réseau non calculée dans cette version`);
-  }
+  const prosumerHtva = 0; // Prosumer charge is non-switchable, handled outside calc
 
   const totalHtva = energyHtva + networkHtva + taxesHtva;
   const vat = Math.round(totalHtva * vatRate * 100) / 100;
@@ -109,6 +106,7 @@ export function calcBelgiumAnnualTotalTVAC(
     energyHtva: Math.round(energyHtva * 100) / 100,
     networkHtva: Math.round(networkHtva * 100) / 100,
     taxesHtva: Math.round(taxesHtva * 100) / 100,
+    prosumerHtva,
     totalHtva: Math.round(totalHtva * 100) / 100,
     vat,
     totalTvac,

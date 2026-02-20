@@ -15,6 +15,7 @@ import OpenAI from "openai";
 import { getElectricityOffers } from "@/lib/offers/index";
 import { lookupGrdFromEAN, type BeRegion } from "@/lib/pricing/be/grd";
 import { calcBelgiumAnnualTotalTVAC } from "@/lib/pricing/be/calc";
+// NOTE: Prosumer is non-switchable — extracted from bill, not computed by calc
 
 const ANALYZE_VERSION = "ANALYZE-V9-2026-02-17";
 
@@ -61,8 +62,11 @@ export interface ExtractedBill {
 
   // Belgium-specific (optional — extracted when present on bill)
   ean?: string | null;
-  prosumer?: boolean | null;
-  inverter_kva?: number | null;
+  prosumer_detected?: boolean | null;
+  prosumer_amount_eur?: number | null;    // actual EUR from prosumer charge line
+  prosumer_period_days?: number | null;   // days covered by prosumer charge
+  prosumer_annual_eur?: number | null;    // = amount / days * 365 (non-switchable)
+  inverter_kva?: number | null;           // informational only
 
   extraction_mode?: "image_vision" | "pdf_text";
   pdf_text_length?: number;
@@ -130,6 +134,9 @@ IMPORTANT — CHAMPS CRITIQUES:
 5) "consumption_kwh_annual":
    Consommation totale (jour + nuit, HP + HC) en kWh sur la période de la facture.
    ⚠️ Retourne la consommation EXACTE de la période, ne l'annualise PAS.
+   ⚠️ ATTENTION AUX SÉPARATEURS DE MILLIERS: "3 863 kWh" = 3863, "3.863 kWh" = 3863, "3,863 kWh" = 3863.
+   Un ménage belge moyen consomme 3000-5000 kWh/an. Si tu trouves < 500 kWh, vérifie que tu n'as pas perdu un chiffre.
+   Retourne un NUMBER entier (ex: 3863), PAS un string.
 
 6) "country": Déduis le pays depuis l'adresse, le code postal ou le fournisseur: "BE", "FR", "LU", etc.
    Indices: code postal 4 chiffres = BE, 5 chiffres = FR. Fournisseurs BE: Mega, Luminus, Eneco, Octa+. Fournisseurs FR: EDF, Engie (FR), TotalEnergies (FR).
@@ -143,13 +150,27 @@ IMPORTANT — CHAMPS CRITIQUES:
    Cherche "EAN", "Code EAN", "EAN-18", "Point d'accès", "Code du compteur".
    Retourne les 18 chiffres uniquement (sans espaces ni tirets). Sinon null.
 
-9) "prosumer": true si la facture mentionne panneaux solaires, injection réseau,
-   "prosumer", onduleur, "nettometing", ou production propre. Sinon false.
+9) "prosumer_detected": true si la facture mentionne panneaux solaires, injection réseau,
+   "prosumer", onduleur, "nettometing", production propre, "tarif prosumer",
+   "redevance prosumer", "capacité d'injection". false sinon.
 
-10) "inverter_kva": Puissance nominale de l'onduleur en kVA si explicitement indiquée.
-    Cherche "kVA", "puissance onduleur", "puissance injection". Sinon null.
+10) "prosumer_amount_eur": Montant FINAL en EUR de la ligne "redevance prosumer" / "tarif prosumer" /
+    "surcharge prosumer" / "forfait injection" / "tarif capacitif prosumer".
+    C'est le montant EN EUROS facturé (ex: 234,56 €), PAS un coefficient (ex: 0,969863).
+    Retourne un NUMBER en EUR. Sinon null.
 
-11) "meter_type": Type de compteur électrique. Retourne "mono" pour un compteur mono-horaire
+11) "prosumer_period_days": Nombre de jours couverts par la redevance prosumer.
+    Si une période spécifique est indiquée pour la ligne prosumer, utilise-la.
+    Sinon, utilise la période de facturation principale (billing_period_start → billing_period_end).
+    Retourne un NUMBER entier. Sinon null.
+
+12) "inverter_kva": Puissance nominale de l'onduleur en kVA.
+    Cherche "kVA", "puissance onduleur", "puissance nominale", "puissance injection",
+    "capacité onduleur", "omvormer".
+    Formats possibles: "3,54 kVA" → 3.54, "3540 VA" → 3.54 (diviser par 1000), "3.5kVA" → 3.5.
+    Retourne un NUMBER en kVA. Sinon null.
+
+13) "meter_type": Type de compteur électrique. Retourne "mono" pour un compteur mono-horaire
     (tarif unique), ou "bi" pour un compteur bi-horaire (HP/HC, jour/nuit). Sinon null.
 
 Schéma EXACT:
@@ -175,7 +196,9 @@ Schéma EXACT:
   "hc_consumption_kwh": number|null,
 
   "ean": string|null,
-  "prosumer": boolean,
+  "prosumer_detected": boolean,
+  "prosumer_amount_eur": number|null,
+  "prosumer_period_days": number|null,
   "inverter_kva": number|null
 }
 
@@ -200,6 +223,94 @@ function numOrNull(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Robust number normalization handling European formats:
+ *   "3 863"   → 3863   (space as thousand separator)
+ *   "3.863"   → 3863   (dot as thousand separator, no decimals)
+ *   "3,863"   → 3863   (comma as thousand separator, no decimals)
+ *   "3863.5"  → 3863.5 (dot as decimal)
+ *   "3863,5"  → 3863.5 (comma as decimal)
+ *   "0,0829"  → 0.0829 (comma as decimal, small number)
+ *
+ * Heuristic: if the string contains exactly one comma or dot followed by
+ * exactly 3 digits at the end AND the integer part >= 1, treat it as a
+ * thousand separator (e.g., "3.863" = 3863, not 3.863).
+ * Exception: if integer part is 0, it's always decimal ("0,0829").
+ */
+export function normalizeNumeric(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  let s = String(v).trim();
+  // Strip currency symbols and units
+  s = s.replace(/[€$kWh/an/mois]/gi, "").trim();
+  // Strip spaces used as thousand separators
+  s = s.replace(/\s/g, "");
+
+  if (!s) return null;
+
+  // Check for European thousand separator pattern: "3.863" or "3,863"
+  // where there's exactly one separator followed by exactly 3 digits
+  const thousandMatch = s.match(/^(\d+)[.,](\d{3})$/);
+  if (thousandMatch) {
+    const n = parseInt(thousandMatch[1] + thousandMatch[2], 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Handle comma as decimal separator: "0,0829" → "0.0829"
+  // If there's exactly one comma not followed by exactly 3 digits, treat as decimal
+  if (s.includes(",") && !s.includes(".")) {
+    s = s.replace(",", ".");
+  }
+
+  // Handle multiple dots (e.g., "1.234.567") — strip all but last
+  const dots = s.split(".");
+  if (dots.length > 2) {
+    const last = dots.pop()!;
+    s = dots.join("") + "." + last;
+  }
+
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Sanity-check annual kWh: Belgian household 500-50000 range */
+const KWH_MIN = 500;
+const KWH_MAX = 50000;
+
+function sanitizeAnnualKwh(raw: number | null): { value: number | null; warning: string | null } {
+  if (raw == null) return { value: null, warning: null };
+  if (raw >= KWH_MIN && raw <= KWH_MAX) return { value: raw, warning: null };
+
+  // Try rescaling: if < 500, maybe a zero was dropped (×10)
+  if (raw > 0 && raw < KWH_MIN) {
+    const scaled = raw * 10;
+    if (scaled >= KWH_MIN && scaled <= KWH_MAX) {
+      return {
+        value: scaled,
+        warning: `Consommation ${raw} kWh anormalement basse — corrigée à ${scaled} kWh (chiffre probablement tronqué)`,
+      };
+    }
+  }
+
+  // If > 50000, possibly a decimal was misread as thousand separator
+  if (raw > KWH_MAX) {
+    const scaled = Math.round(raw / 10);
+    if (scaled >= KWH_MIN && scaled <= KWH_MAX) {
+      return {
+        value: scaled,
+        warning: `Consommation ${raw} kWh anormalement élevée — corrigée à ${scaled} kWh`,
+      };
+    }
+  }
+
+  // Return as-is with warning
+  return {
+    value: raw,
+    warning: `Consommation ${raw} kWh hors plage attendue (${KWH_MIN}-${KWH_MAX})`,
+  };
 }
 
 function computePeriodDays(start: string | null, end: string | null): number | null {
@@ -282,25 +393,23 @@ function parseGPTResponse(raw: string): ExtractedBill {
 
   const hpPrice = numOrNull(data.hp_unit_price_eur_kwh);
   const hcPrice = numOrNull(data.hc_unit_price_eur_kwh);
-  const hpKwh = numOrNull(data.hp_consumption_kwh);
-  const hcKwh = numOrNull(data.hc_consumption_kwh);
+  const hpKwh = normalizeNumeric(data.hp_consumption_kwh);
+  const hcKwh = normalizeNumeric(data.hc_consumption_kwh);
   const weighted = computeWeightedPrice(hpPrice, hcPrice, hpKwh, hcKwh);
 
   // Auto-compute TTC from HTVA if TTC is missing
-  const htva = numOrNull(data.total_annual_htva_eur);
-  let ttc = numOrNull(data.total_annual_ttc_eur);
+  const htva = normalizeNumeric(data.total_annual_htva_eur);
+  let ttc = normalizeNumeric(data.total_annual_ttc_eur);
   const country = ((data.country as string) ?? null)?.toUpperCase() ?? null;
 
   if (ttc == null && htva != null) {
-    const sub = numOrNull(data.subscription_annual_ht_eur) ?? 0;
+    const sub = normalizeNumeric(data.subscription_annual_ht_eur) ?? 0;
     if (country === "FR") {
-      // France: 5.5% TVA on subscription+CTA, 20% on the rest (energy, CSPE, TCFE, etc.)
       const subTTC = sub * 1.055;
       const restTTC = (htva - sub) * 1.20;
       ttc = Math.round((subTTC + restTTC) * 100) / 100;
       console.log(`[analyze] Auto TTC (FR): sub=${sub}×1.055 + rest=${htva - sub}×1.20 = ${ttc} TTC`);
     } else {
-      // Belgium: flat 6% TVA on electricity
       ttc = Math.round(htva * 1.06 * 100) / 100;
       console.log(`[analyze] Auto TTC (BE): ${htva} HTVA × 1.06 = ${ttc} TTC`);
     }
@@ -321,11 +430,40 @@ function parseGPTResponse(raw: string): ExtractedBill {
   const eanDigits = rawEan ? rawEan.replace(/\D/g, "") : null;
   const ean = eanDigits && eanDigits.length === 18 ? eanDigits : null;
 
-  // prosumer: explicit boolean from GPT, null if not returned
-  const prosumer: boolean | null =
-    typeof data.prosumer === "boolean" ? data.prosumer : null;
+  // prosumer fields
+  const prosumerDetected: boolean | null =
+    typeof data.prosumer_detected === "boolean" ? data.prosumer_detected :
+    typeof data.prosumer === "boolean" ? data.prosumer : null; // backward compat
 
-  const inverterKva = numOrNull(data.inverter_kva);
+  const prosumerAmountEur = normalizeNumeric(data.prosumer_amount_eur);
+  let prosumerPeriodDays = numOrNull(data.prosumer_period_days);
+  // Fall back to billing period days if prosumer period not specified
+  if (prosumerDetected && prosumerAmountEur != null && prosumerPeriodDays == null) {
+    prosumerPeriodDays = periodDays;
+  }
+
+  // Annualize: prosumer_annual_eur = amount / days * 365
+  let prosumerAnnualEur: number | null = null;
+  if (prosumerAmountEur != null && prosumerPeriodDays != null && prosumerPeriodDays > 0) {
+    prosumerAnnualEur = Math.round((prosumerAmountEur / prosumerPeriodDays) * 365 * 100) / 100;
+    console.log(`[analyze] Prosumer annual: ${prosumerAmountEur}€ / ${prosumerPeriodDays}d × 365 = ${prosumerAnnualEur}€/an`);
+  } else if (prosumerDetected && prosumerAmountEur == null) {
+    console.log(`[analyze] Prosumer detected but no EUR amount found on bill — prosumer_annual_eur = null`);
+  }
+
+  // inverter_kva: normalize VA → kVA if needed (informational only)
+  let inverterKva = normalizeNumeric(data.inverter_kva);
+  if (inverterKva != null && inverterKva > 100) {
+    inverterKva = Math.round((inverterKva / 1000) * 100) / 100;
+    console.log(`[analyze] inverter_kva converted from VA: ${data.inverter_kva} → ${inverterKva} kVA`);
+  }
+
+  // Consumption: use normalizeNumeric to handle thousand separators
+  const rawKwh = normalizeNumeric(data.consumption_kwh_annual);
+  const { value: sanitizedKwh, warning: kwhWarning } = sanitizeAnnualKwh(rawKwh);
+  if (kwhWarning) {
+    console.warn(`[analyze] ${kwhWarning}`);
+  }
 
   const bill: ExtractedBill = {
     provider: (data.provider as string) ?? null,
@@ -339,8 +477,8 @@ function parseGPTResponse(raw: string): ExtractedBill {
     country,
 
     energy_unit_price_eur_kwh: weighted ?? numOrNull(data.energy_unit_price_eur_kwh),
-    consumption_kwh_annual: numOrNull(data.consumption_kwh_annual),
-    subscription_annual_ht_eur: numOrNull(data.subscription_annual_ht_eur),
+    consumption_kwh_annual: sanitizedKwh,
+    subscription_annual_ht_eur: normalizeNumeric(data.subscription_annual_ht_eur),
     total_annual_htva_eur: htva,
     total_annual_ttc_eur: ttc,
 
@@ -350,7 +488,10 @@ function parseGPTResponse(raw: string): ExtractedBill {
     hc_consumption_kwh: hcKwh,
 
     ean,
-    prosumer,
+    prosumer_detected: prosumerDetected,
+    prosumer_amount_eur: prosumerAmountEur,
+    prosumer_period_days: prosumerPeriodDays,
+    prosumer_annual_eur: prosumerAnnualEur,
     inverter_kva: inverterKva,
 
     confidence: "insufficient",
@@ -548,25 +689,38 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
     }
   }
 
+  // Prosumer charge is NON-SWITCHABLE: same regardless of supplier.
+  // Add it equally to every offer's total TVAC.
+  const prosumerAnnual = bill.prosumer_annual_eur ?? 0;
+  const prosumerAssumptions: string[] = [];
+  if (bill.prosumer_detected && prosumerAnnual > 0) {
+    prosumerAssumptions.push(
+      `Redevance prosumer: ${prosumerAnnual.toFixed(2)} €/an (non-switchable, identique pour toutes les offres)`
+    );
+  } else if (bill.prosumer_detected && prosumerAnnual === 0) {
+    prosumerAssumptions.push(
+      "Prosumer détecté mais montant/période non trouvé sur la facture — redevance prosumer non incluse dans l'estimation"
+    );
+  }
+
   return getElectricityOffers(billCountry)
     .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
     .map((offer): OfferResult => {
       if (isBE) {
-        // Belgium: full TVAC comparison using stub BE calc
+        // Belgium: full TVAC comparison (energy + network + taxes)
         const breakdown = calcBelgiumAnnualTotalTVAC({
           annualKwhDay: beDay,
           annualKwhNight: beNight,
           meterType: beMeterType,
           supplierEnergyPriceDay: offer.energy_price_day,
-          // fallback to day price if offer has no night price
           supplierEnergyPriceNight: offer.energy_price_night ?? offer.energy_price_day,
           supplierFixedFeeAnnual: offer.supplier_fixed_fee_year,
           region: beRegion,
           vatRate: 0.06,
-          prosumer: bill.prosumer ?? false,
-          inverterKva: bill.inverter_kva ?? undefined,
         });
-        const savings = Math.round(currentAnnualCost - breakdown.totalTvac);
+        // Add non-switchable prosumer on top
+        const offerTotalTvac = Math.round((breakdown.totalTvac + prosumerAnnual) * 100) / 100;
+        const savings = Math.round(currentAnnualCost - offerTotalTvac);
         const savingsPercent =
           currentAnnualCost > 0
             ? Math.round((savings / currentAnnualCost) * 100)
@@ -580,10 +734,10 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
           type: offer.contract_type,
           green: false,
           url: offer.source_url,
-          total_tvac: breakdown.totalTvac,
+          total_tvac: offerTotalTvac,
           total_htva: breakdown.totalHtva,
           vat_amount: breakdown.vat,
-          assumptions: breakdown.assumptions,
+          assumptions: [...breakdown.assumptions, ...prosumerAssumptions],
         };
       }
 

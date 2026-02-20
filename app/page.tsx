@@ -36,7 +36,7 @@ export default function Home() {
         </p>
         <div className="flex flex-col gap-4">
           {([
-            ["📸", "Envoie ta facture", "Photo, PDF ou capture d’ecran - tout fonctionne pour l’électricite et les télécom."],
+            ["📸", "Envoie ta facture", "Photo, PDF ou capture d’ecran - tout fonctionne pour l’électricité et les télécom."],
             ["🔍", "Billy analyse", "Billy analyse plus de 3 000 points de données en temps reel et compare avec les offres du marche belge."],
             ["💡", "Tu découvres le resultat", "Je te montre les offres qui pourraient te convenir, avec une estimation indicative des économies possibles."],
           ] as const).map(([icon, title, desc], i) => (

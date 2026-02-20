@@ -42,7 +42,10 @@ export interface ExtractedBill {
 
   // Belgium-specific
   ean?: string | null;
-  prosumer?: boolean | null;
+  prosumer_detected?: boolean | null;
+  prosumer_amount_eur?: number | null;
+  prosumer_period_days?: number | null;
+  prosumer_annual_eur?: number | null;
   inverter_kva?: number | null;
 
   // Legacy fallback
@@ -159,7 +162,7 @@ function OfferCard({
 
       {/* Tags */}
       <div className="flex gap-1.5 flex-wrap text-xs text-slate-500 mb-3.5">
-        <span className="bg-slate-100 px-2 py-0.5 rounded-md">~{offer.price_kwh}€/kWh</span>
+        <span className="bg-slate-100 px-2 py-0.5 rounded-md">~{offer.price_kwh}€/kWh HTVA</span>
         <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.type}</span>
         {offer.green && <span className="bg-emerald-50 px-2 py-0.5 rounded-md">🌱 Vert</span>}
       </div>
@@ -281,7 +284,7 @@ export function ResultCards({ data }: ResultCardsProps) {
           />
 
           <Field
-            label="Prix énergie (moyen)"
+            label="Prix énergie fournisseur (HTVA)"
             value={
               bill.energy_unit_price_eur_kwh != null
                 ? `${bill.energy_unit_price_eur_kwh.toLocaleString("fr-BE", {
@@ -293,21 +296,34 @@ export function ResultCards({ data }: ResultCardsProps) {
           />
 
           <Field
-            label="Prix fixe mensuel (annualise)"
+            label="Prix fixe mensuel (annualisé)"
             value={
               bill.subscription_annual_ht_eur != null
                 ? `${fmt(bill.subscription_annual_ht_eur)}€`
-                : "Non detecte"
+                : "Non detecté"
             }
             mono
           />
         </div>
 
         <p className="mt-3 text-[11px] text-slate-500 italic leading-relaxed">
-  Les taxes et la TVA sont réglementées et identiques pour toutes les offres.
-  Elles sont incluses dans le total TTC.
-</p>
-        {/* ✅ "SOUS LE </div> DU GRID" = JUSTE ICI */}
+          La TVA et une partie des taxes sont réglementées, et Billy estime le réseau selon ta région/GRD.
+        </p>
+
+        {/* Prosumer badge */}
+        {bill.prosumer_detected && (
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed flex items-start gap-2">
+            <span className="text-base leading-none mt-0.5">☀️</span>
+            <div>
+              <span className="font-semibold">Panneaux photovoltaïques détectés (prosumer)</span>
+              {bill.prosumer_annual_eur != null && bill.prosumer_annual_eur > 0 ? (
+                <span className="ml-1">— redevance estimée {fmt(bill.prosumer_annual_eur)} €/an</span>
+              ) : (
+                <span className="ml-1 text-amber-600">— montant redevance non détecté sur la facture</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {bill.needs_full_annual_invoice && (
           <div className="mt-3 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs text-rose-800 leading-relaxed">
