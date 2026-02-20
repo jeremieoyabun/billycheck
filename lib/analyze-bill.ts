@@ -134,9 +134,11 @@ IMPORTANT — CHAMPS CRITIQUES:
 5) "consumption_kwh_annual":
    Consommation totale (jour + nuit, HP + HC) en kWh sur la période de la facture.
    ⚠️ Retourne la consommation EXACTE de la période, ne l'annualise PAS.
-   ⚠️ ATTENTION AUX SÉPARATEURS DE MILLIERS: "3 863 kWh" = 3863, "3.863 kWh" = 3863, "3,863 kWh" = 3863.
-   Un ménage belge moyen consomme 3000-5000 kWh/an. Si tu trouves < 500 kWh, vérifie que tu n'as pas perdu un chiffre.
-   Retourne un NUMBER entier (ex: 3863), PAS un string.
+   ⚠️ ATTENTION AUX SÉPARATEURS DE MILLIERS: "3 863 kWh" = 3863, "3.863 kWh" = 3863.
+   ⚠️ ATTENTION AUX DÉCIMALES: "386,3 kWh" = 386.3 (virgule = décimale car suivi d'un seul chiffre).
+   Un ménage belge moyen consomme 3000-5000 kWh/an. MAIS un prosumer (panneaux solaires)
+   peut consommer seulement 100-500 kWh/an — c'est NORMAL, ne "corrige" PAS ce chiffre.
+   Retourne un NUMBER (ex: 3863 ou 386.3), PAS un string.
 
 6) "country": Déduis le pays depuis l'adresse, le code postal ou le fournisseur: "BE", "FR", "LU", etc.
    Indices: code postal 4 chiffres = BE, 5 chiffres = FR. Fournisseurs BE: Mega, Luminus, Eneco, Octa+. Fournisseurs FR: EDF, Engie (FR), TotalEnergies (FR).
@@ -278,14 +280,22 @@ export function normalizeNumeric(v: unknown): number | null {
 
 /** Sanity-check annual kWh: Belgian household 500-50000 range */
 const KWH_MIN = 500;
+const KWH_MIN_PROSUMER = 10; // Prosumers with solar can have very low net consumption
 const KWH_MAX = 50000;
 
-function sanitizeAnnualKwh(raw: number | null): { value: number | null; warning: string | null } {
+function sanitizeAnnualKwh(
+  raw: number | null,
+  opts?: { prosumer?: boolean },
+): { value: number | null; warning: string | null } {
   if (raw == null) return { value: null, warning: null };
-  if (raw >= KWH_MIN && raw <= KWH_MAX) return { value: raw, warning: null };
 
-  // Try rescaling: if < 500, maybe a zero was dropped (×10)
-  if (raw > 0 && raw < KWH_MIN) {
+  const minKwh = opts?.prosumer ? KWH_MIN_PROSUMER : KWH_MIN;
+
+  if (raw >= minKwh && raw <= KWH_MAX) return { value: raw, warning: null };
+
+  // Try rescaling: if below min, maybe a zero was dropped (×10)
+  // BUT skip this heuristic for prosumers — low consumption is expected
+  if (!opts?.prosumer && raw > 0 && raw < KWH_MIN) {
     const scaled = raw * 10;
     if (scaled >= KWH_MIN && scaled <= KWH_MAX) {
       return {
@@ -298,7 +308,7 @@ function sanitizeAnnualKwh(raw: number | null): { value: number | null; warning:
   // If > 50000, possibly a decimal was misread as thousand separator
   if (raw > KWH_MAX) {
     const scaled = Math.round(raw / 10);
-    if (scaled >= KWH_MIN && scaled <= KWH_MAX) {
+    if (scaled >= minKwh && scaled <= KWH_MAX) {
       return {
         value: scaled,
         warning: `Consommation ${raw} kWh anormalement élevée — corrigée à ${scaled} kWh`,
@@ -309,7 +319,7 @@ function sanitizeAnnualKwh(raw: number | null): { value: number | null; warning:
   // Return as-is with warning
   return {
     value: raw,
-    warning: `Consommation ${raw} kWh hors plage attendue (${KWH_MIN}-${KWH_MAX})`,
+    warning: `Consommation ${raw} kWh hors plage attendue (${minKwh}-${KWH_MAX})`,
   };
 }
 
@@ -460,10 +470,27 @@ function parseGPTResponse(raw: string): ExtractedBill {
 
   // Consumption: use normalizeNumeric to handle thousand separators
   const rawKwh = normalizeNumeric(data.consumption_kwh_annual);
-  const { value: sanitizedKwh, warning: kwhWarning } = sanitizeAnnualKwh(rawKwh);
+  const { value: sanitizedKwh, warning: kwhWarning } = sanitizeAnnualKwh(rawKwh, {
+    prosumer: prosumerDetected === true,
+  });
   if (kwhWarning) {
     console.warn(`[analyze] ${kwhWarning}`);
   }
+
+  // Annualize: GPT returns period consumption/costs, not 365-day.
+  // Scale to a full year when period is known (300-365 days).
+  const annualFactor = (periodDays && periodDays >= MIN_ANNUAL_PERIOD_DAYS && periodDays < 365)
+    ? 365 / periodDays
+    : 1;
+  if (annualFactor !== 1) {
+    console.log(`[analyze] Annualizing: period ${periodDays}d → factor ${annualFactor.toFixed(4)}`);
+  }
+
+  const annualKwh = sanitizedKwh != null ? Math.round(sanitizedKwh * annualFactor) : null;
+  const annualHtva = htva != null ? Math.round(htva * annualFactor * 100) / 100 : null;
+  const annualTtc = ttc != null ? Math.round(ttc * annualFactor * 100) / 100 : null;
+  const annualHpKwh = hpKwh != null ? Math.round(hpKwh * annualFactor) : null;
+  const annualHcKwh = hcKwh != null ? Math.round(hcKwh * annualFactor) : null;
 
   const bill: ExtractedBill = {
     provider: (data.provider as string) ?? null,
@@ -477,15 +504,15 @@ function parseGPTResponse(raw: string): ExtractedBill {
     country,
 
     energy_unit_price_eur_kwh: weighted ?? numOrNull(data.energy_unit_price_eur_kwh),
-    consumption_kwh_annual: sanitizedKwh,
+    consumption_kwh_annual: annualKwh,
     subscription_annual_ht_eur: normalizeNumeric(data.subscription_annual_ht_eur),
-    total_annual_htva_eur: htva,
-    total_annual_ttc_eur: ttc,
+    total_annual_htva_eur: annualHtva,
+    total_annual_ttc_eur: annualTtc,
 
     hp_unit_price_eur_kwh: hpPrice,
     hc_unit_price_eur_kwh: hcPrice,
-    hp_consumption_kwh: hpKwh,
-    hc_consumption_kwh: hcKwh,
+    hp_consumption_kwh: annualHpKwh,
+    hc_consumption_kwh: annualHcKwh,
 
     ean,
     prosumer_detected: prosumerDetected,
@@ -660,7 +687,6 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
   const currentAnnualCost = bill.total_annual_ttc_eur;
   if (currentAnnualCost == null || currentAnnualCost <= 0) return [];
 
-  const currentProvider = (bill.provider ?? "").toLowerCase();
   const billCountry = (bill.country ?? "BE").toUpperCase();
   const isBE = billCountry === "BE";
 
@@ -704,7 +730,9 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
   }
 
   return getElectricityOffers(billCountry)
-    .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
+    // Note: we do NOT exclude the current provider — users may benefit from
+    // switching to a different plan with the same provider. The savings threshold
+    // (>€10) naturally prevents recommending their own equivalent offer.
     // Region filter: WAL-only offers shown only to WAL users, etc.
     .filter((o) => {
       if (!beRegion || o.region === "ALL") return true;
