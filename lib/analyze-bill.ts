@@ -705,6 +705,18 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
 
   return getElectricityOffers(billCountry)
     .filter((o) => o.provider_name.toLowerCase() !== currentProvider)
+    // Region filter: WAL-only offers shown only to WAL users, etc.
+    .filter((o) => {
+      if (!beRegion || o.region === "ALL") return true;
+      return o.region === beRegion;
+    })
+    // Meter type filter: BI-only offers for bi-hourly meters, MONO-only for mono
+    .filter((o) => {
+      if (o.meter_type === "ALL") return true;
+      if (o.meter_type === "BI") return beMeterType === "bi";
+      if (o.meter_type === "MONO") return beMeterType === "mono";
+      return true;
+    })
     .map((offer): OfferResult => {
       if (isBE) {
         // Belgium: full TVAC comparison (energy + network + taxes)
