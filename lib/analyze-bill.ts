@@ -883,7 +883,7 @@ export function compareOffers(bill: ExtractedBill, _engagement: string): OfferRe
     })
     .filter((o) => o.estimated_savings > 10)
     .sort((a, b) => b.estimated_savings - a.estimated_savings)
-    .slice(0, 3);
+    .slice(0, 5);
 }
 
 /* ──────────────────────────────────────────────

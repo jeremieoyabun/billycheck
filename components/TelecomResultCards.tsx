@@ -305,7 +305,7 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
           {hasOffers && offers[0]?.estimated_annual_savings > 0 && (
             <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800 leading-relaxed font-medium">
               💸 En restant chez <strong>{telecom.provider ?? "ton opérateur"}</strong>, tu perds environ{" "}
-              <strong className="text-red-600">~{Math.round(offers[0].estimated_annual_savings / 12)}€ chaque mois</strong>.
+              <strong className="text-red-600">~{offers[0].estimated_annual_savings}€ par an</strong>.
             </div>
           )}
 
