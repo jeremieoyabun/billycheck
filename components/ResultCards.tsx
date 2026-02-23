@@ -128,7 +128,7 @@ function OfferCard({
         {(() => {
           const logo = getProviderLogo(offer.provider);
           return logo ? (
-            <Image src={logo} alt={offer.provider} width={32} height={32} className="rounded-md object-contain" />
+            <Image src={logo} alt={offer.provider} width={40} height={40} className="rounded-md object-contain" />
           ) : null;
         })()}
         <div className="flex-1 min-w-0">
@@ -388,9 +388,11 @@ export function ResultCards({ data }: ResultCardsProps) {
 
         {/* Loss aversion */}
         {hasOffers && !bill.needs_full_annual_invoice && offers[0]?.estimated_savings > 0 && (
-          <p className="mt-3 text-sm text-red-600 font-semibold">
-            💸 En restant chez {bill.provider ?? "ton fournisseur"}, tu perds ~{offers[0].estimated_savings}€ par an.
-          </p>
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-sm text-red-700 font-bold">
+              💸 En restant chez {bill.provider ?? "ton fournisseur"}, tu perds ~{offers[0].estimated_savings}€ par an.
+            </p>
+          </div>
         )}
 
         {bill.needs_full_annual_invoice && (
@@ -407,10 +409,10 @@ export function ResultCards({ data }: ResultCardsProps) {
           </p>
         )}
 
-        <p className="mt-2 text-[11px] text-slate-400 italic">
-          * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
-        </p>
       </div>
+      <p className="text-[11px] text-slate-400 italic">
+        * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
+      </p>
 
       {/* Offers */}
       {hasOffers && !bill.needs_full_annual_invoice && (
@@ -441,7 +443,7 @@ export function ResultCards({ data }: ResultCardsProps) {
         </p>
         <Link
           href="/scan?v=telecom"
-          className="w-full items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors text-center"
         >
           📱 Analyser ma facture telecom
         </Link>

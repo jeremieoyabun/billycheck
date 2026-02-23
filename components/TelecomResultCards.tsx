@@ -73,7 +73,7 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: Te
         {(() => {
           const logo = getProviderLogo(offer.provider);
           return logo ? (
-            <Image src={logo} alt={offer.provider} width={32} height={32} className="rounded-md object-contain" />
+            <Image src={logo} alt={offer.provider} width={40} height={40} className="rounded-md object-contain" />
           ) : null;
         })()}
         <div className="flex-1 min-w-0">
@@ -256,6 +256,7 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
 
       {/* Current plan card */}
       {!isInsufficient && (
+        <>
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <div className="text-[13px] text-slate-500 font-semibold uppercase tracking-wider mb-3">
             Ton forfait actuel
@@ -311,15 +312,17 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
 
           {/* Loss aversion */}
           {hasOffers && offers[0]?.estimated_annual_savings > 0 && (
-            <p className="mt-3 text-sm text-red-600 font-semibold">
-              💸 En restant chez {telecom.provider ?? "ton opérateur"}, tu perds ~{offers[0].estimated_annual_savings}€ par an.
-            </p>
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-sm text-red-700 font-bold">
+                💸 En restant chez {telecom.provider ?? "ton opérateur"}, tu perds ~{offers[0].estimated_annual_savings}€ par an.
+              </p>
+            </div>
           )}
-
-          <p className="mt-2 text-[11px] text-slate-400 italic">
-            * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
-          </p>
         </div>
+        <p className="text-[11px] text-slate-400 italic">
+          * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
+        </p>
+        </>
       )}
 
       {/* Offers */}
