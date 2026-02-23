@@ -52,7 +52,7 @@ export function EmailGate({ scanId, onUnlocked }: EmailGateProps) {
   };
 
   return (
-    <div className="bg-white border-2 border-billy-blue/30 rounded-2xl p-5 space-y-3">
+    <div id="email-gate" className="bg-white border-2 border-billy-blue/30 rounded-2xl p-5 space-y-3">
       <div className="text-center">
         <div className="text-2xl mb-1">🔓</div>
         <div className="font-bold text-base text-slate-900">

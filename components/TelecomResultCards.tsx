@@ -74,7 +74,7 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = tr
         {(() => {
           const logo = getProviderLogo(offer.provider);
           return logo ? (
-            <Image src={logo} alt={offer.provider} width={40} height={40} className={`rounded-md object-contain${unlocked ? "" : " blur-sm"}`} />
+            <Image src={logo} alt={offer.provider} width={48} height={48} className={`rounded-md object-contain${unlocked ? "" : " blur-sm"}`} />
           ) : null;
         })()}
         <div className="flex-1 min-w-0">
@@ -167,12 +167,16 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = tr
         target={unlocked ? "_blank" : undefined}
         rel={unlocked ? "noopener noreferrer" : undefined}
         onClick={(e) => {
-          if (!unlocked) { e.preventDefault(); return; }
+          if (!unlocked) {
+            e.preventDefault();
+            document.getElementById("email-gate")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
           track("offer_clicked", { provider: offer.provider, vertical: "telecom", rank });
         }}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           !unlocked
-            ? "bg-slate-100 text-slate-400 cursor-default"
+            ? "bg-slate-100 text-slate-400 cursor-pointer hover:bg-slate-200"
             : rank === 0
               ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
               : "bg-slate-100 text-slate-700 hover:bg-slate-200"
