@@ -4,6 +4,41 @@ import { prisma } from "@/lib/prisma";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Brevo list IDs
+const BREVO_LIST_ELECTRICITY = 3;
+const BREVO_LIST_TELECOM = 4;
+
+async function addToBrevo(email: string, listId: number) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn("BREVO_API_KEY not set — skipping Brevo sync");
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.brevo.com/v3/contacts/lists/${listId}/contacts/add`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          accept: "application/json",
+        },
+        body: JSON.stringify({ emails: [email] }),
+      }
+    );
+
+    // 400/409 = already in list, that's fine
+    if (!res.ok && res.status !== 400 && res.status !== 409) {
+      const text = await res.text().catch(() => "");
+      console.error("Brevo error:", res.status, text);
+    }
+  } catch (err) {
+    console.error("Brevo fetch failed:", err);
+  }
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -37,6 +72,14 @@ export async function POST(
       update: { email },
     });
   }
+
+  // Determine vertical from resultJson
+  const resultJson = scan.resultJson as Record<string, unknown> | null;
+  const vertical = resultJson?.vertical === "telecom" ? "telecom" : "electricity";
+  const listId = vertical === "telecom" ? BREVO_LIST_TELECOM : BREVO_LIST_ELECTRICITY;
+
+  // Sync to Brevo (fire-and-forget, don't block the response)
+  addToBrevo(email, listId);
 
   return Response.json({ ok: true });
 }
