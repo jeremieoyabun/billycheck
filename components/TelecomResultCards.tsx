@@ -345,6 +345,14 @@ export function TelecomResultCards({ data, scanId, unlocked = false, onUnlocked 
         </>
       )}
 
+      {/* Email gate — above offers when locked */}
+      {!unlocked && scanId && onUnlocked && hasOffers && !isInsufficient && (
+        <EmailGate scanId={scanId} onUnlocked={onUnlocked} />
+      )}
+
+      {/* Referral share — only when unlocked */}
+      {unlocked && <ShareButton />}
+
       {/* Offers */}
       {hasOffers && !isInsufficient && (
         <>
@@ -361,19 +369,11 @@ export function TelecomResultCards({ data, scanId, unlocked = false, onUnlocked 
               <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} unlocked={unlocked} />
             ))}
           </div>
-
-          {/* Email gate */}
-          {!unlocked && scanId && onUnlocked && (
-            <EmailGate scanId={scanId} onUnlocked={onUnlocked} />
-          )}
         </>
       )}
 
-      {/* Referral share */}
-      <ShareButton />
-
-      {/* Cross-sell: electricity */}
-      <ElectricityCrossSell />
+      {/* Cross-sell: electricity — only when unlocked */}
+      {unlocked && <ElectricityCrossSell />}
 
       {/* Legal disclaimer */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">

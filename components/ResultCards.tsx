@@ -437,6 +437,14 @@ export function ResultCards({ data, scanId, initialUnlocked = false }: ResultCar
         * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
       </p>
 
+      {/* Email gate — above offers when locked */}
+      {!unlocked && scanId && hasOffers && !bill.needs_full_annual_invoice && (
+        <EmailGate scanId={scanId} onUnlocked={() => setUnlocked(true)} />
+      )}
+
+      {/* Referral share — only when unlocked */}
+      {unlocked && <ShareButton />}
+
       {/* Offers */}
       {hasOffers && !bill.needs_full_annual_invoice && (
         <>
@@ -453,34 +461,28 @@ export function ResultCards({ data, scanId, initialUnlocked = false }: ResultCar
               <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} unlocked={unlocked} />
             ))}
           </div>
-
-          {/* Email gate */}
-          {!unlocked && scanId && (
-            <EmailGate scanId={scanId} onUnlocked={() => setUnlocked(true)} />
-          )}
         </>
       )}
 
-      {/* Referral share */}
-      <ShareButton />
-
-      {/* Cross-sell: Telecom */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xl">📱</span>
-          <div className="font-bold text-sm text-blue-900">Verifiez aussi votre telecom</div>
+      {/* Cross-sell: Telecom — only when unlocked */}
+      {unlocked && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xl">📱</span>
+            <div className="font-bold text-sm text-blue-900">Verifiez aussi votre telecom</div>
+          </div>
+          <p className="text-xs text-blue-800 leading-relaxed mb-3">
+            Nos utilisateurs economisent en moyenne 120 €/an en changeant de forfait telecom.
+            Analysez votre facture telecom gratuitement.
+          </p>
+          <Link
+            href="/scan?v=telecom"
+            className="w-full flex items-center justify-center gap-1.5 px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors text-center"
+          >
+            📱 Analyser ma facture telecom
+          </Link>
         </div>
-        <p className="text-xs text-blue-800 leading-relaxed mb-3">
-          Nos utilisateurs economisent en moyenne 120 €/an en changeant de forfait telecom.
-          Analysez votre facture telecom gratuitement.
-        </p>
-        <Link
-          href="/scan?v=telecom"
-          className="w-full flex items-center justify-center gap-1.5 px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors text-center"
-        >
-          📱 Analyser ma facture telecom
-        </Link>
-      </div>
+      )}
 
       {/* Legal disclaimer */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 leading-relaxed space-y-1.5">
