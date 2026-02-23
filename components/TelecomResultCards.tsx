@@ -41,7 +41,7 @@ const planTypeLabel = (t: string | null | undefined) => {
 /* ──────────────────────────────────────────────
    Offer card
    ────────────────────────────────────────────── */
-function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = true }: { offer: TelecomOffer; rank: number; mobileLines: number; billMonthly?: number | null; unlocked?: boolean }) {
+function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = true, scanId }: { offer: TelecomOffer; rank: number; mobileLines: number; billMonthly?: number | null; unlocked?: boolean; scanId?: string }) {
   const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
   const monthlySavings = Math.round(offer.estimated_annual_savings / 12);
@@ -173,6 +173,19 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = tr
             return;
           }
           track("offer_clicked", { provider: offer.provider, vertical: "telecom", rank });
+          if (scanId) {
+            fetch(`/api/scans/${scanId}/track-click`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                provider: offer.provider,
+                plan: offer.plan,
+                vertical: "telecom",
+                rank,
+                savings: offer.estimated_annual_savings,
+              }),
+            }).catch(() => {});
+          }
         }}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           !unlocked
@@ -366,7 +379,7 @@ export function TelecomResultCards({ data, scanId, unlocked = false, onUnlocked 
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} unlocked={unlocked} />
+              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} unlocked={unlocked} scanId={scanId} />
             ))}
           </div>
         </>

@@ -98,12 +98,14 @@ function OfferCard({
   engagement,
   billAnnualTtc,
   unlocked = true,
+  scanId,
 }: {
   offer: Offer;
   rank: number;
   engagement?: string;
   billAnnualTtc?: number | null;
   unlocked?: boolean;
+  scanId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
@@ -243,6 +245,19 @@ function OfferCard({
             return;
           }
           track("offer_clicked", { provider: offer.provider, vertical: "electricity", rank });
+          if (scanId) {
+            fetch(`/api/scans/${scanId}/track-click`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                provider: offer.provider,
+                plan: offer.plan,
+                vertical: "electricity",
+                rank,
+                savings: offer.estimated_savings,
+              }),
+            }).catch(() => {});
+          }
         }}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           !unlocked
@@ -458,7 +473,7 @@ export function ResultCards({ data, scanId, initialUnlocked = false }: ResultCar
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} unlocked={unlocked} />
+              <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} unlocked={unlocked} scanId={scanId} />
             ))}
           </div>
         </>
