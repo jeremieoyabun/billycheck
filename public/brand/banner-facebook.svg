@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Calque_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 820 312">
+  <!-- Generator: Adobe Illustrator 30.2.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 1)  -->
+  <defs>
+    <style>
+      .st0 {
+        opacity: .06;
+      }
+
+      .st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10, .st11, .st12, .st13 {
+        isolation: isolate;
+      }
+
+      .st0, .st1, .st6, .st8, .st11 {
+        fill: #fff;
+      }
+
+      .st1 {
+        font-size: 8.45px;
+      }
+
+      .st1, .st4, .st5 {
+        font-weight: 700;
+      }
+
+      .st1, .st5 {
+        font-family: Poppins-Bold, Poppins;
+      }
+
+      .st2 {
+        fill: #34d399;
+      }
+
+      .st2, .st12 {
+        font-family: Poppins-Medium, Poppins;
+        font-size: 10.74px;
+        font-weight: 500;
+      }
+
+      .st3, .st14, .st13 {
+        fill: #2563eb;
+      }
+
+      .st3, .st9 {
+        opacity: .15;
+      }
+
+      .st4 {
+        font-family: CourierNewPS-BoldMT, 'Courier New';
+        font-size: 10.14px;
+      }
+
+      .st4, .st9, .st15 {
+        fill: #10b981;
+      }
+
+      .st16 {
+        fill: url(#Dégradé_sans_nom_2);
+      }
+
+      .st17 {
+        fill: none;
+        stroke: #2563eb;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.99px;
+      }
+
+      .st5 {
+        fill: #d1d8e0;
+        font-size: 17.45px;
+      }
+
+      .st6 {
+        opacity: .12;
+      }
+
+      .st8, .st18 {
+        opacity: .08;
+      }
+
+      .st19 {
+        fill: url(#Dégradé_sans_nom);
+      }
+
+      .st10 {
+        fill: #94a3b8;
+        font-family: ArialMT, Arial;
+        font-size: 7.32px;
+      }
+
+      .st11, .st13 {
+        font-family: Arial-Black, Arial;
+        font-size: 53.7px;
+        font-weight: 800;
+      }
+
+      .st12 {
+        fill: #60a5fa;
+      }
+    </style>
+    <linearGradient id="Dégradé_sans_nom" data-name="Dégradé sans nom" x1="-548.33" y1="695.77" x2="-547.33" y2="694.77" gradientTransform="translate(449631 217081) scale(820 -312)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset=".5" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="Dégradé_sans_nom_2" data-name="Dégradé sans nom 2" cx="-547.68" cy="695.37" fx="-547.68" fy="695.37" r=".6" gradientTransform="translate(449631 217081) scale(820 -312)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect class="st19" width="820" height="312"/>
+  <rect class="st16" width="820" height="312"/>
+  <rect class="st14" width="820" height="9.42"/>
+  <rect class="st14" y="302.58" width="820" height="9.42"/>
+  <rect class="st14" y="309" width="820" height="3"/>
+  <g class="st18">
+    <circle class="st14" cx="21.25" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="21.25" cy="282.96" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="64.31" cy="282.96" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="107.38" cy="282.96" r="2.58"/>
+  </g>
+  <g class="st18">
+    <circle class="st14" cx="673.56" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="673.56" cy="282.96" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="716.63" cy="282.96" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="24.58" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="67.65" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="110.71" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="153.77" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="196.83" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="239.89" r="2.58"/>
+    <circle class="st14" cx="759.69" cy="282.96" r="2.58"/>
+  </g>
+  <rect class="st14" x="-34.06" y="-300.07" width="1162.2" height="2.93"/>
+  <g class="st7">
+    <text class="st13" transform="translate(130.37 126.59)"><tspan x="0" y="0">Billy</tspan></text>
+    <text class="st11" transform="translate(259.51 126.59)"><tspan x="0" y="0">Check</tspan></text>
+  </g>
+  <text class="st5" transform="translate(130.37 163.51)"><tspan x="0" y="0">L&apos;IA qui analyse tes factures d&apos;énergie et télécom</tspan></text>
+  <path class="st14" d="M131.38,175.59h51.69c.56,0,1.01.45,1.01,1.01h0c0,.56-.45,1.01-1.01,1.01h-51.69c-.56,0-1.01-.45-1.01-1.01h0c0-.56.45-1.01,1.01-1.01Z"/>
+  <g>
+    <path class="st3" d="M139.9,193.71h78.88c5.26,0,9.53,5.41,9.53,12.08h0c0,6.67-4.27,12.08-9.53,12.08h-78.88c-5.26,0-9.53-5.41-9.53-12.08h0c0-6.67,4.27-12.08,9.53-12.08Z"/>
+    <text class="st12" transform="translate(153.87 209.15)"><tspan x="0" y="0">Électricité</tspan></text>
+    <path class="st3" d="M260.18,193.71h66.34c6.05,0,10.95,5.41,10.95,12.08h0c0,6.67-4.9,12.08-10.95,12.08h-66.34c-6.05,0-10.95-5.41-10.95-12.08h0c0-6.67,4.9-12.08,10.95-12.08Z"/>
+    <text class="st12" transform="translate(272.72 209.15)"><tspan x="0" y="0">Télécom</tspan></text>
+    <path class="st9" d="M366.29,193.71h80.19c4.86,0,8.8,5.41,8.8,12.08h0c0,6.67-3.94,12.08-8.8,12.08h-80.19c-4.86,0-8.8-5.41-8.8-12.08h0c0-6.67,3.94-12.08,8.8-12.08Z"/>
+    <text class="st2" transform="translate(380.98 209.15)"><tspan x="0" y="0">Analyse IA</tspan></text>
+  </g>
+  <path class="st14" d="M142.85,211.99c-.09,0-.19-.02-.28-.06-.29-.12-.46-.42-.42-.73l.48-3.87h-4.45c-.27,0-.52-.16-.64-.4s-.08-.54.1-.75l5.83-6.99c.2-.24.53-.32.82-.19.29.12.46.42.42.73l-.48,3.87h4.45c.27,0,.52.16.64.4s.08.54-.1.75l-5.83,6.99c-.14.16-.34.25-.54.25ZM139.69,205.92h3.74c.2,0,.39.09.53.24.13.15.2.35.17.55l-.29,2.29,3.33-4h-3.74c-.2,0-.39-.09-.53-.24-.13-.15-.2-.35-.17-.55l.29-2.29-3.33,4Z"/>
+  <g>
+    <rect class="st17" x="259.91" y="200.02" width="8.19" height="11.7" rx="2.15" ry="2.15"/>
+    <line class="st17" x1="264.01" y1="209.38" x2="264.01" y2="209.38"/>
+  </g>
+  <g>
+    <path class="st15" d="M375.54,211.1h-7.16c-.99,0-1.79-.8-1.79-1.79v-7.16c0-.99.8-1.79,1.79-1.79h7.16c.99,0,1.79.8,1.79,1.79v7.16c0,.99-.8,1.79-1.79,1.79ZM368.38,201.55c-.33,0-.6.27-.6.6v7.16c0,.33.27.6.6.6h7.16c.33,0,.6-.27.6-.6v-7.16c0-.33-.27-.6-.6-.6h-7.16Z"/>
+    <circle class="st15" cx="370.17" cy="204.54" r=".89"/>
+  </g>
+  <g>
+    <rect class="st8" x="642.88" y="86.56" width="157.75" height="90.14" rx="16" ry="16"/>
+    <path class="st6" d="M657.53,97.83h60.85c1.87,0,3.38,1.51,3.38,3.38h0c0,1.87-1.51,3.38-3.38,3.38h-60.85c-1.87,0-3.38-1.51-3.38-3.38h0c0-1.87,1.51-3.38,3.38-3.38Z"/>
+    <path class="st8" d="M656.96,111.35h39.44c1.56,0,2.82,1.26,2.82,2.82h0c0,1.56-1.26,2.82-2.82,2.82h-39.44c-1.56,0-2.82-1.26-2.82-2.82h0c0-1.56,1.26-2.82,2.82-2.82Z"/>
+    <path class="st8" d="M656.96,124.87h84.51c1.56,0,2.82,1.26,2.82,2.82h0c0,1.56-1.26,2.82-2.82,2.82h-84.51c-1.56,0-2.82-1.26-2.82-2.82h0c0-1.56,1.26-2.82,2.82-2.82Z"/>
+    <path class="st8" d="M656.96,138.39h73.24c1.56,0,2.82,1.26,2.82,2.82h0c0,1.56-1.26,2.82-2.82,2.82h-73.24c-1.56,0-2.82-1.26-2.82-2.82h0c0-1.56,1.26-2.82,2.82-2.82Z"/>
+    <rect class="st0" x="654.15" y="155.29" width="135.21" height=".56"/>
+    <text class="st4" transform="translate(654.15 171.07)"><tspan x="0" y="0">-180€/an</tspan></text>
+    <text class="st10" transform="translate(710.48 171.07)"><tspan x="0" y="0">d&apos;economies</tspan></text>
+  </g>
+  <g>
+    <path class="st14" d="M694.71,187.97h65.35c6.85,0,12.39,5.55,12.39,12.39h0c0,6.85-5.55,12.39-12.39,12.39h-65.35c-6.85,0-12.39-5.55-12.39-12.39h0c0-6.85,5.55-12.39,12.39-12.39Z"/>
+    <text class="st1" transform="translate(694.02 203.75)"><tspan x="0" y="0">billycheck.com</tspan></text>
+  </g>
+</svg>

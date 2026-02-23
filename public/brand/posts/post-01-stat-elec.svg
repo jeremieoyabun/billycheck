@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- Big stat -->
+  <text x="540" y="320" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="200" fill="#2563EB">30%</text>
+  <text x="540" y="400" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="36" fill="#94A3B8">des menages belges</text>
+  <text x="540" y="455" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="42" fill="#FFFFFF">paient trop cher</text>
+  <text x="540" y="510" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="36" fill="#94A3B8">leur electricite</text>
+
+  <!-- Divider -->
+  <rect x="460" y="560" width="160" height="4" rx="2" fill="#2563EB"/>
+
+  <!-- Subtext -->
+  <text x="540" y="640" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="500" font-size="30" fill="#64748B">Scanne ta facture.</text>
+  <text x="540" y="685" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="30" fill="#FFFFFF">Billy trouve mieux.</text>
+
+  <!-- CTA button -->
+  <rect x="365" y="750" width="350" height="70" rx="35" fill="#2563EB"/>
+  <text x="540" y="795" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo bottom -->
+  <text x="540" y="980" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

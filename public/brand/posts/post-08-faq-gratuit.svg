@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- Quote marks -->
+  <text x="540" y="180" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="120" fill="#2563EB" opacity="0.3">"</text>
+
+  <!-- Question -->
+  <text x="540" y="300" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48" fill="#FFFFFF">C'est vraiment</text>
+  <text x="540" y="370" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="64" fill="#10B981">gratuit ?</text>
+
+  <!-- Divider -->
+  <rect x="460" y="410" width="160" height="4" rx="2" fill="#2563EB"/>
+
+  <!-- Answer -->
+  <text x="540" y="490" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="36" fill="#FFFFFF">Oui.</text>
+
+  <!-- Features -->
+  <g font-family="DM Sans, Arial, sans-serif">
+    <rect x="200" y="540" width="680" height="70" rx="16" fill="#FFFFFF" opacity="0.05"/>
+    <text x="250" y="584" font-weight="400" font-size="26" fill="#94A3B8">&#x1F512;  Tes donnees restent privees</text>
+
+    <rect x="200" y="630" width="680" height="70" rx="16" fill="#FFFFFF" opacity="0.05"/>
+    <text x="250" y="674" font-weight="400" font-size="26" fill="#94A3B8">&#x26A1;  Analyse en moins de 30 secondes</text>
+
+    <rect x="200" y="720" width="680" height="70" rx="16" fill="#FFFFFF" opacity="0.05"/>
+    <text x="250" y="764" font-weight="400" font-size="26" fill="#94A3B8">&#x1F4B0;  Economies visibles immediatement</text>
+  </g>
+
+  <!-- CTA -->
+  <rect x="365" y="850" width="350" height="70" rx="35" fill="#2563EB"/>
+  <text x="540" y="895" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo -->
+  <text x="540" y="1000" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="42">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

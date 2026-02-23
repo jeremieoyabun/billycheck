@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- Title -->
+  <text x="540" y="120" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="40" fill="#94A3B8">Le saviez-vous ?</text>
+  <text x="540" y="200" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF">Internet en Belgique :</text>
+
+  <!-- Price range visual -->
+  <rect x="100" y="260" width="880" height="200" rx="20" fill="#FFFFFF" opacity="0.04"/>
+
+  <!-- Low end -->
+  <text x="250" y="330" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="80" fill="#10B981">34€</text>
+  <text x="250" y="380" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="22" fill="#94A3B8">/mois</text>
+  <text x="250" y="430" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="500" font-size="20" fill="#10B981">200 Mbps</text>
+
+  <!-- Arrow -->
+  <text x="540" y="350" text-anchor="middle" font-family="Arial" font-size="60" fill="#64748B">...</text>
+
+  <!-- High end -->
+  <text x="830" y="330" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="80" fill="#EF4444">73€</text>
+  <text x="830" y="380" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="22" fill="#94A3B8">/mois</text>
+  <text x="830" y="430" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="500" font-size="20" fill="#EF4444">meme service</text>
+
+  <!-- Highlight -->
+  <text x="540" y="550" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="32" fill="#FFFFFF">Jusqu'a 468€/an de difference</text>
+  <text x="540" y="600" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="28" fill="#94A3B8">pour un service quasi identique.</text>
+
+  <!-- Question -->
+  <rect x="200" y="660" width="680" height="90" rx="20" fill="#2563EB" opacity="0.1"/>
+  <text x="540" y="715" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#2563EB">Tu paies le juste prix ?</text>
+
+  <!-- CTA -->
+  <rect x="365" y="810" width="350" height="70" rx="35" fill="#2563EB"/>
+  <text x="540" y="855" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo -->
+  <text x="540" y="980" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

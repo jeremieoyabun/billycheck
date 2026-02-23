@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#10B981"/>
+
+  <!-- Big number -->
+  <text x="540" y="270" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="32" fill="#94A3B8">Economie moyenne</text>
+  <text x="540" y="450" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="220" fill="#10B981">180€</text>
+  <text x="540" y="530" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="48" fill="#FFFFFF">par an</text>
+
+  <!-- Subtext -->
+  <rect x="460" y="580" width="160" height="4" rx="2" fill="#10B981"/>
+  <text x="540" y="660" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="28" fill="#94A3B8">en changeant de fournisseur</text>
+  <text x="540" y="705" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="28" fill="#FFFFFF">d'electricite en Belgique</text>
+
+  <!-- CTA -->
+  <rect x="365" y="780" width="350" height="70" rx="35" fill="#10B981"/>
+  <text x="540" y="825" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo -->
+  <text x="540" y="980" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#10B981"/>
+</svg>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- Title -->
+  <text x="540" y="150" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48" fill="#FFFFFF">3 erreurs qui te font</text>
+  <text x="540" y="215" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48" fill="#2563EB">payer trop cher</text>
+  <text x="540" y="275" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="32" fill="#94A3B8">ta facture telecom</text>
+
+  <!-- Error 1 -->
+  <rect x="100" y="340" width="880" height="110" rx="16" fill="#EF4444" opacity="0.1"/>
+  <text x="150" y="380" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="30" fill="#EF4444">01</text>
+  <text x="220" y="380" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">Tu n'as jamais compare</text>
+  <text x="220" y="425" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="22" fill="#94A3B8">depuis la signature de ton contrat</text>
+
+  <!-- Error 2 -->
+  <rect x="100" y="470" width="880" height="110" rx="16" fill="#EF4444" opacity="0.1"/>
+  <text x="150" y="510" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="30" fill="#EF4444">02</text>
+  <text x="220" y="510" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">Tu paies pour des GB inutilises</text>
+  <text x="220" y="555" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="22" fill="#94A3B8">un forfait trop grand = de l'argent perdu</text>
+
+  <!-- Error 3 -->
+  <rect x="100" y="600" width="880" height="110" rx="16" fill="#EF4444" opacity="0.1"/>
+  <text x="150" y="640" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="30" fill="#EF4444">03</text>
+  <text x="220" y="640" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">Tu rates les promos</text>
+  <text x="220" y="685" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="22" fill="#94A3B8">des nouveaux operateurs belges</text>
+
+  <!-- CTA -->
+  <rect x="365" y="780" width="350" height="70" rx="35" fill="#2563EB"/>
+  <text x="540" y="825" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="28" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo -->
+  <text x="540" y="980" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="48">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

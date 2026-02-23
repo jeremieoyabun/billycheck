@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
@@ -92,22 +93,22 @@ function OfferCard({
   offer,
   rank,
   engagement,
+  billAnnualTtc,
 }: {
   offer: Offer;
   rank: number;
   engagement?: string;
+  billAnnualTtc?: number | null;
 }) {
+  const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
-  const clr =
-    offer.estimated_savings > 200
-      ? "text-emerald-600"
-      : offer.estimated_savings > 100
-      ? "text-emerald-500"
-      : "text-slate-500";
+  const monthlySavings = Math.round(offer.estimated_savings / 12);
+  const offerAnnual = offer.total_tvac ?? (billAnnualTtc != null ? billAnnualTtc - offer.estimated_savings : null);
+  const barPct = billAnnualTtc && offerAnnual ? Math.round((offerAnnual / billAnnualTtc) * 100) : null;
 
   return (
     <div
-      className={`bg-white rounded-2xl p-5 relative transition-transform ${
+      className={`bg-white rounded-2xl p-5 relative ${
         rank === 0
           ? "border-2 border-emerald-500 shadow-[0_4px_20px_rgba(16,185,129,0.12)]"
           : "border border-slate-200 shadow-sm"
@@ -122,57 +123,95 @@ function OfferCard({
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-3">
         <span className="text-2xl">{medals[rank] ?? "•"}</span>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="font-bold text-base text-slate-900">{offer.provider}</div>
           <div className="text-[13px] text-slate-500">{offer.plan}</div>
         </div>
       </div>
 
-      {/* Savings */}
+      {/* Savings — always visible */}
       <div className="bg-emerald-50 rounded-xl p-3 mb-3">
-        <div className="text-[13px] text-slate-500 mb-0.5">Économie potentielle estimée</div>
         <div className="flex items-baseline gap-1.5">
-          <span className={`text-[28px] font-extrabold font-mono ${clr}`}>
+          <span className="text-[28px] font-extrabold font-mono text-emerald-600">
             ~{offer.estimated_savings}€
           </span>
           <span className="text-sm text-slate-500">/an*</span>
         </div>
-        <div className="mt-1.5 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 rounded-full"
-            style={{ width: `${Math.min(offer.savings_percent, 100)}%` }}
-          />
-        </div>
-        <div className="text-xs text-slate-500 mt-1">
-          soit environ ~{offer.savings_percent}% de moins
-        </div>
-      </div>
-
-      {/* Engagement warnings */}
-      {engagement === "yes" && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 mb-3 leading-relaxed">
-          ⚠️ Tu as indiqué être engagé(e). Vérifie la date de fin de ton contrat et les éventuels
-          frais de résiliation avant de changer.
-        </div>
-      )}
-      {engagement === "unknown" && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 mb-3 leading-relaxed">
-          ℹ️ Vérifie tes conditions d'engagement avant de souscrire. Cette information figure
-          généralement sur ta facture ou ton espace client.
-        </div>
-      )}
-
-      {/* Tags */}
-      <div className="flex gap-1.5 flex-wrap text-xs text-slate-500 mb-3.5">
-        <span className="bg-slate-100 px-2 py-0.5 rounded-md">~{offer.price_kwh}€/kWh HTVA</span>
-        <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.type}</span>
-        {offer.green && <span className="bg-emerald-50 px-2 py-0.5 rounded-md">🌱 Vert</span>}
-        {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
-          <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
-            Promo {offer.promo_bonus_eur}€
-          </span>
+        {monthlySavings > 0 && (
+          <div className="text-sm font-semibold text-emerald-700 mt-0.5">
+            soit ~{monthlySavings}€/mois dans ta poche
+          </div>
         )}
       </div>
+
+      {/* Toggle details */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors mb-3"
+      >
+        <span className={`inline-block transition-transform ${open ? "rotate-45" : ""}`}>+</span>
+        {open ? "Masquer les détails" : "Voir les détails"}
+      </button>
+
+      {/* Collapsible details */}
+      {open && (
+        <div className="animate-fade-up space-y-3 mb-3">
+          {/* Visual comparison bar */}
+          {billAnnualTtc != null && offerAnnual != null && barPct != null && (
+            <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400 w-14 shrink-0">Actuel</span>
+                <div className="flex-1 h-4 bg-red-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-400 rounded-full animate-bar-fill" style={{ width: "100%" }} />
+                </div>
+                <span className="text-[11px] font-mono text-red-500 w-16 text-right">{fmt(billAnnualTtc)}€</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-emerald-600 w-14 shrink-0 font-semibold">Offre</span>
+                <div className="flex-1 h-4 bg-emerald-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full animate-bar-fill" style={{ width: `${barPct}%`, animationDelay: "0.3s" }} />
+                </div>
+                <span className="text-[11px] font-mono text-emerald-600 w-16 text-right font-bold">{fmt(offerAnnual)}€</span>
+              </div>
+              <div className="text-center text-[11px] text-slate-400">estimation annuelle TTC</div>
+            </div>
+          )}
+
+          {/* Savings % */}
+          <div className="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full"
+              style={{ width: `${Math.min(offer.savings_percent, 100)}%` }}
+            />
+          </div>
+          <div className="text-xs text-slate-500">~{offer.savings_percent}% de moins</div>
+
+          {/* Tags */}
+          <div className="flex gap-1.5 flex-wrap text-xs text-slate-500">
+            <span className="bg-slate-100 px-2 py-0.5 rounded-md">~{offer.price_kwh}€/kWh HTVA</span>
+            <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.type}</span>
+            {offer.green && <span className="bg-emerald-50 px-2 py-0.5 rounded-md">🌱 Vert</span>}
+            {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
+              <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+                Promo {offer.promo_bonus_eur}€
+              </span>
+            )}
+          </div>
+
+          {/* Engagement warnings */}
+          {engagement === "yes" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
+              ⚠️ Tu as indiqué être engagé(e). Vérifie la date de fin de ton contrat et les éventuels
+              frais de résiliation avant de changer.
+            </div>
+          )}
+          {engagement === "unknown" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 leading-relaxed">
+              ℹ️ Vérifie tes conditions d'engagement avant de souscrire.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CTA */}
       <a
@@ -182,11 +221,11 @@ function OfferCard({
         onClick={() => track("offer_clicked", { provider: offer.provider, vertical: "electricity", rank })}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           rank === 0
-            ? "bg-emerald-500 text-white hover:bg-emerald-600"
+            ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
-        Voir cette offre →
+        {rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
       </a>
     </div>
   );
@@ -344,6 +383,14 @@ export function ResultCards({ data }: ResultCardsProps) {
           </div>
         )}
 
+        {/* Loss aversion nudge */}
+        {hasOffers && !bill.needs_full_annual_invoice && offers[0]?.estimated_savings > 0 && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800 leading-relaxed font-medium">
+            💸 En restant chez <strong>{bill.provider ?? "ton fournisseur"}</strong>, tu perds environ{" "}
+            <strong className="text-red-600">~{Math.round(offers[0].estimated_savings / 12)}€ chaque mois</strong>.
+          </div>
+        )}
+
         {bill.needs_full_annual_invoice && (
           <div className="mt-3 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs text-rose-800 leading-relaxed">
             ⚠️ Facture annuelle requise. Il manque des infos indispensables pour comparer
@@ -374,7 +421,7 @@ export function ResultCards({ data }: ResultCardsProps) {
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <OfferCard key={i} offer={o} rank={i} engagement={engagement} />
+              <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} />
             ))}
           </div>
         </>

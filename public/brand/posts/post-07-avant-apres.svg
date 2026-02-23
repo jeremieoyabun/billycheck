@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- AVANT column -->
+  <rect x="60" y="80" width="460" height="820" rx="24" fill="#EF4444" opacity="0.06"/>
+  <text x="290" y="150" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="40" fill="#EF4444">AVANT</text>
+
+  <text x="120" y="240" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="24" fill="#94A3B8">&#x2716;  Tu recois ta facture</text>
+  <text x="120" y="330" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="24" fill="#94A3B8">&#x2716;  Tu te dis "c'est cher"</text>
+  <text x="120" y="420" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="24" fill="#94A3B8">&#x2716;  Tu la paies quand meme</text>
+  <text x="120" y="510" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="24" fill="#94A3B8">&#x2716;  Tu oublies</text>
+  <text x="120" y="600" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="24" fill="#94A3B8">&#x2716;  Repeat...</text>
+
+  <!-- APRES column -->
+  <rect x="560" y="80" width="460" height="820" rx="24" fill="#10B981" opacity="0.06"/>
+  <text x="790" y="150" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="40" fill="#10B981">APRES</text>
+
+  <text x="620" y="240" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="24" fill="#FFFFFF">&#x2714;  Scanne ta facture</text>
+  <text x="660" y="280" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="20" fill="#94A3B8">30 secondes chrono</text>
+
+  <text x="620" y="370" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="24" fill="#FFFFFF">&#x2714;  L'IA compare tout</text>
+  <text x="660" y="410" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="20" fill="#94A3B8">automatiquement</text>
+
+  <text x="620" y="500" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="24" fill="#FFFFFF">&#x2714;  Tu vois tes economies</text>
+  <text x="660" y="540" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="20" fill="#94A3B8">noir sur blanc</text>
+
+  <text x="620" y="630" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="24" fill="#FFFFFF">&#x2714;  Tu changes en 1 clic</text>
+  <text x="660" y="670" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="20" fill="#94A3B8">vers une meilleure offre</text>
+
+  <!-- CTA -->
+  <rect x="365" y="930" width="350" height="60" rx="30" fill="#2563EB"/>
+  <text x="540" y="970" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="26" fill="#FFFFFF">billycheck.be</text>
+
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

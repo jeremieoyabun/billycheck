@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect y="0" width="1080" height="6" fill="#2563EB"/>
+
+  <!-- Title -->
+  <text x="540" y="130" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="44" fill="#FFFFFF">Tu paies combien</text>
+  <text x="540" y="190" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="44" fill="#2563EB">pour ton mobile ?</text>
+
+  <!-- Comparison boxes -->
+  <!-- Before -->
+  <rect x="100" y="260" width="400" height="280" rx="20" fill="#EF4444" opacity="0.08" stroke="#EF4444" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="300" y="320" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="22" fill="#EF4444">TON FORFAIT ACTUEL</text>
+  <text x="300" y="420" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="72" fill="#EF4444">25€</text>
+  <text x="300" y="465" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="500" font-size="24" fill="#94A3B8">/mois</text>
+  <text x="300" y="510" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">10 GB</text>
+
+  <!-- Arrow -->
+  <text x="540" y="420" text-anchor="middle" font-family="Arial" font-size="48" fill="#2563EB">&#8594;</text>
+
+  <!-- After -->
+  <rect x="580" y="260" width="400" height="280" rx="20" fill="#10B981" opacity="0.08" stroke="#10B981" stroke-opacity="0.3" stroke-width="2"/>
+  <text x="780" y="320" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="22" fill="#10B981">OFFRE TROUVEE</text>
+  <text x="780" y="420" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="72" fill="#10B981">10€</text>
+  <text x="780" y="465" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="500" font-size="24" fill="#94A3B8">/mois</text>
+  <text x="780" y="510" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">25 GB</text>
+
+  <!-- Savings -->
+  <rect x="300" y="600" width="480" height="90" rx="20" fill="#10B981" opacity="0.15"/>
+  <text x="540" y="656" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="36" fill="#10B981">= 180€ d'economie/an</text>
+
+  <!-- Subtext -->
+  <text x="540" y="760" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="400" font-size="26" fill="#94A3B8">Plus de data. Moins cher.</text>
+  <text x="540" y="800" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="600" font-size="26" fill="#FFFFFF">Verifie le prix de ton forfait.</text>
+
+  <!-- CTA -->
+  <rect x="365" y="860" width="350" height="60" rx="30" fill="#2563EB"/>
+  <text x="540" y="900" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-weight="700" font-size="26" fill="#FFFFFF">billycheck.be</text>
+
+  <!-- Logo -->
+  <text x="540" y="1000" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="42">
+    <tspan fill="#2563EB">Billy</tspan><tspan fill="#FFFFFF">Check</tspan>
+  </text>
+  <rect y="1074" width="1080" height="6" fill="#2563EB"/>
+</svg>

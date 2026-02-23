@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
@@ -37,12 +38,12 @@ const planTypeLabel = (t: string | null | undefined) => {
 /* ──────────────────────────────────────────────
    Offer card
    ────────────────────────────────────────────── */
-function TelecomOfferCard({ offer, rank, mobileLines }: { offer: TelecomOffer; rank: number; mobileLines: number }) {
+function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: TelecomOffer; rank: number; mobileLines: number; billMonthly?: number | null }) {
+  const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
-  const clr =
-    offer.estimated_annual_savings > 200 ? "text-emerald-600"
-    : offer.estimated_annual_savings > 100 ? "text-emerald-500"
-    : "text-slate-500";
+  const monthlySavings = Math.round(offer.estimated_annual_savings / 12);
+  const offerMonthlyTotal = offer.monthly_price_eur * mobileLines;
+  const barPct = billMonthly && billMonthly > 0 ? Math.round((offerMonthlyTotal / billMonthly) * 100) : null;
 
   const includedItems = [
     offer.includes_internet && "Internet",
@@ -52,7 +53,7 @@ function TelecomOfferCard({ offer, rank, mobileLines }: { offer: TelecomOffer; r
 
   return (
     <div
-      className={`bg-white rounded-2xl p-5 relative transition-transform ${
+      className={`bg-white rounded-2xl p-5 relative ${
         rank === 0
           ? "border-2 border-emerald-500 shadow-[0_4px_20px_rgba(16,185,129,0.12)]"
           : "border border-slate-200 shadow-sm"
@@ -64,46 +65,87 @@ function TelecomOfferCard({ offer, rank, mobileLines }: { offer: TelecomOffer; r
         </span>
       )}
 
+      {/* Header */}
       <div className="flex items-center gap-2.5 mb-3">
         <span className="text-2xl">{medals[rank] ?? "•"}</span>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="font-bold text-base text-slate-900">{offer.provider}</div>
           <div className="text-[13px] text-slate-500">{offer.plan}</div>
         </div>
       </div>
 
-      {/* Savings */}
+      {/* Savings — always visible */}
       <div className="bg-emerald-50 rounded-xl p-3 mb-3">
-        <div className="text-[13px] text-slate-500 mb-0.5">Economie potentielle estimee</div>
         <div className="flex items-baseline gap-1.5">
-          <span className={`text-[28px] font-extrabold font-mono ${clr}`}>
+          <span className="text-[28px] font-extrabold font-mono text-emerald-600">
             ~{offer.estimated_annual_savings}€
           </span>
           <span className="text-sm text-slate-500">/an*</span>
         </div>
-      </div>
-
-      {/* Details */}
-      <div className="flex gap-1.5 flex-wrap text-xs text-slate-500 mb-3.5">
-        <span className="bg-slate-100 px-2 py-0.5 rounded-md">
-          {fmt(offer.monthly_price_eur)}&nbsp;€/mois{mobileLines > 1 ? ` × ${mobileLines} lignes` : ""}
-        </span>
-        {offer.data_gb != null && (
-          <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.data_gb}&nbsp;GB</span>
-        )}
-        {offer.download_speed_mbps && (
-          <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.download_speed_mbps}&nbsp;Mbps</span>
-        )}
-        {includedItems.map((it) => (
-          <span key={it} className="bg-blue-50 px-2 py-0.5 rounded-md text-blue-700">{it}</span>
-        ))}
-        {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
-          <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
-            Promo {offer.promo_bonus_eur}€
-          </span>
+        {monthlySavings > 0 && (
+          <div className="text-sm font-semibold text-emerald-700 mt-0.5">
+            soit ~{monthlySavings}€/mois dans ta poche
+          </div>
         )}
       </div>
 
+      {/* Toggle details */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors mb-3"
+      >
+        <span className={`inline-block transition-transform ${open ? "rotate-45" : ""}`}>+</span>
+        {open ? "Masquer les détails" : "Voir les détails"}
+      </button>
+
+      {/* Collapsible details */}
+      {open && (
+        <div className="animate-fade-up space-y-3 mb-3">
+          {/* Visual comparison bar */}
+          {billMonthly != null && barPct != null && (
+            <div className="rounded-xl bg-slate-50 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400 w-14 shrink-0">Actuel</span>
+                <div className="flex-1 h-4 bg-red-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-400 rounded-full animate-bar-fill" style={{ width: "100%" }} />
+                </div>
+                <span className="text-[11px] font-mono text-red-500 w-16 text-right">{fmt(billMonthly)}€</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-emerald-600 w-14 shrink-0 font-semibold">Offre</span>
+                <div className="flex-1 h-4 bg-emerald-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full animate-bar-fill" style={{ width: `${barPct}%`, animationDelay: "0.3s" }} />
+                </div>
+                <span className="text-[11px] font-mono text-emerald-600 w-16 text-right font-bold">{fmt(offerMonthlyTotal)}€</span>
+              </div>
+              <div className="text-center text-[11px] text-slate-400">par mois TTC</div>
+            </div>
+          )}
+
+          {/* Tags */}
+          <div className="flex gap-1.5 flex-wrap text-xs text-slate-500">
+            <span className="bg-slate-100 px-2 py-0.5 rounded-md">
+              {fmt(offer.monthly_price_eur)}&nbsp;€/mois{mobileLines > 1 ? ` × ${mobileLines} lignes` : ""}
+            </span>
+            {offer.data_gb != null && (
+              <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.data_gb}&nbsp;GB</span>
+            )}
+            {offer.download_speed_mbps && (
+              <span className="bg-slate-100 px-2 py-0.5 rounded-md">{offer.download_speed_mbps}&nbsp;Mbps</span>
+            )}
+            {includedItems.map((it) => (
+              <span key={it} className="bg-blue-50 px-2 py-0.5 rounded-md text-blue-700">{it}</span>
+            ))}
+            {offer.promo_bonus_eur != null && offer.promo_bonus_eur < 0 && (
+              <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+                Promo {offer.promo_bonus_eur}€
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CTA */}
       <a
         href={offer.url ?? "#"}
         target="_blank"
@@ -111,11 +153,11 @@ function TelecomOfferCard({ offer, rank, mobileLines }: { offer: TelecomOffer; r
         onClick={() => track("offer_clicked", { provider: offer.provider, vertical: "telecom", rank })}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
           rank === 0
-            ? "bg-emerald-500 text-white hover:bg-emerald-600"
+            ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
-        Voir cette offre →
+        {rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
       </a>
     </div>
   );
@@ -259,6 +301,14 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
             )}
           </div>
 
+          {/* Loss aversion nudge */}
+          {hasOffers && offers[0]?.estimated_annual_savings > 0 && (
+            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800 leading-relaxed font-medium">
+              💸 En restant chez <strong>{telecom.provider ?? "ton opérateur"}</strong>, tu perds environ{" "}
+              <strong className="text-red-600">~{Math.round(offers[0].estimated_annual_savings / 12)}€ chaque mois</strong>.
+            </div>
+          )}
+
           <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
             Ces données ont ete extraites automatiquement. Verifie qu'elles correspondent a ta situation.
           </div>
@@ -273,7 +323,7 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} />
+              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} />
             ))}
           </div>
         </>
