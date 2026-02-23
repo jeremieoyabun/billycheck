@@ -7,6 +7,7 @@
 export const PARTNER_PROVIDERS = {
   electricity: {
     BE: new Set([
+      "bolt",
       "octa_plus",
       "zendure",
       "mega",
