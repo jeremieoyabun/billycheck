@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
+import { EmailGate } from "./EmailGate";
 import { ShareButton } from "./ShareButton";
 import { track } from "@/lib/analytics";
 import { getProviderLogo } from "@/lib/provider-logos";
@@ -40,7 +41,7 @@ const planTypeLabel = (t: string | null | undefined) => {
 /* ──────────────────────────────────────────────
    Offer card
    ────────────────────────────────────────────── */
-function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: TelecomOffer; rank: number; mobileLines: number; billMonthly?: number | null }) {
+function TelecomOfferCard({ offer, rank, mobileLines, billMonthly, unlocked = true }: { offer: TelecomOffer; rank: number; mobileLines: number; billMonthly?: number | null; unlocked?: boolean }) {
   const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
   const monthlySavings = Math.round(offer.estimated_annual_savings / 12);
@@ -73,13 +74,20 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: Te
         {(() => {
           const logo = getProviderLogo(offer.provider);
           return logo ? (
-            <Image src={logo} alt={offer.provider} width={40} height={40} className="rounded-md object-contain" />
+            <Image src={logo} alt={offer.provider} width={40} height={40} className={`rounded-md object-contain${unlocked ? "" : " blur-sm"}`} />
           ) : null;
         })()}
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-base text-slate-900">{offer.provider}</div>
-          <div className="text-[13px] text-slate-500">{offer.plan}</div>
+          <div className={`font-bold text-base text-slate-900${unlocked ? "" : " blur-sm select-none"}`}>
+            {unlocked ? offer.provider : "Fournisseur"}
+          </div>
+          <div className={`text-[13px] text-slate-500${unlocked ? "" : " blur-sm select-none"}`}>
+            {unlocked ? offer.plan : "Offre"}
+          </div>
         </div>
+        {!unlocked && (
+          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">🔒</span>
+        )}
       </div>
 
       {/* Savings — always visible */}
@@ -155,17 +163,22 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: Te
 
       {/* CTA */}
       <a
-        href={offer.url ?? "#"}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => track("offer_clicked", { provider: offer.provider, vertical: "telecom", rank })}
+        href={unlocked ? (offer.url ?? "#") : undefined}
+        target={unlocked ? "_blank" : undefined}
+        rel={unlocked ? "noopener noreferrer" : undefined}
+        onClick={(e) => {
+          if (!unlocked) { e.preventDefault(); return; }
+          track("offer_clicked", { provider: offer.provider, vertical: "telecom", rank });
+        }}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
-          rank === 0
-            ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
-            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          !unlocked
+            ? "bg-slate-100 text-slate-400 cursor-default"
+            : rank === 0
+              ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
-        {rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
+        {!unlocked ? "🔒 Débloque pour voir l'offre" : rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
       </a>
     </div>
   );
@@ -201,9 +214,12 @@ function ElectricityCrossSell() {
    ────────────────────────────────────────────── */
 interface TelecomResultCardsProps {
   data: TelecomResultJson;
+  scanId?: string;
+  unlocked?: boolean;
+  onUnlocked?: () => void;
 }
 
-export function TelecomResultCards({ data }: TelecomResultCardsProps) {
+export function TelecomResultCards({ data, scanId, unlocked = false, onUnlocked }: TelecomResultCardsProps) {
   const { telecom, offers } = data;
   const hasOffers = offers && offers.length > 0;
   const isInsufficient = telecom.confidence === "insufficient";
@@ -328,14 +344,24 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
       {/* Offers */}
       {hasOffers && !isInsufficient && (
         <>
-          <div className="text-[13px] text-slate-500 font-semibold uppercase tracking-wider">
-            Offres potentiellement plus avantageuses
+          <div>
+            <div className="text-[13px] text-slate-500 font-semibold uppercase tracking-wider">
+              Offres potentiellement plus avantageuses
+            </div>
+            <div className="text-[12px] text-slate-400 mt-0.5">
+              Pas 50 offres incompréhensibles, juste les meilleures pour toi.
+            </div>
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} />
+              <TelecomOfferCard key={i} offer={o} rank={i} mobileLines={telecom.mobile_lines != null && telecom.mobile_lines > 1 ? telecom.mobile_lines : 1} billMonthly={telecom.monthly_price_ttc_eur} unlocked={unlocked} />
             ))}
           </div>
+
+          {/* Email gate */}
+          {!unlocked && scanId && onUnlocked && (
+            <EmailGate scanId={scanId} onUnlocked={onUnlocked} />
+          )}
         </>
       )}
 

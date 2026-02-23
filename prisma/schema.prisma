@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Scan {
@@ -19,8 +19,10 @@ model Scan {
   size           Int?
   resultJson     Json?
   userIdentifier String?
+  email          String?
 
   @@index([userIdentifier])
+  @@index([email])
 }
 
 model UserQuota {
@@ -30,6 +32,7 @@ model UserQuota {
   paidCredits    Int      @default(0)
   referralCode   String?  @unique
   referredBy     String?
+  email          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

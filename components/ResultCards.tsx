@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
+import { EmailGate } from "./EmailGate";
 import { TelecomResultCards, type TelecomResultJson } from "./TelecomResultCards";
 import { ShareButton } from "./ShareButton";
 import { track } from "@/lib/analytics";
@@ -96,11 +97,13 @@ function OfferCard({
   rank,
   engagement,
   billAnnualTtc,
+  unlocked = true,
 }: {
   offer: Offer;
   rank: number;
   engagement?: string;
   billAnnualTtc?: number | null;
+  unlocked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const medals = ["🥇", "🥈", "🥉"];
@@ -128,13 +131,20 @@ function OfferCard({
         {(() => {
           const logo = getProviderLogo(offer.provider);
           return logo ? (
-            <Image src={logo} alt={offer.provider} width={40} height={40} className="rounded-md object-contain" />
+            <Image src={logo} alt={offer.provider} width={40} height={40} className={`rounded-md object-contain${unlocked ? "" : " blur-sm"}`} />
           ) : null;
         })()}
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-base text-slate-900">{offer.provider}</div>
-          <div className="text-[13px] text-slate-500">{offer.plan}</div>
+          <div className={`font-bold text-base text-slate-900${unlocked ? "" : " blur-sm select-none"}`}>
+            {unlocked ? offer.provider : "Fournisseur"}
+          </div>
+          <div className={`text-[13px] text-slate-500${unlocked ? "" : " blur-sm select-none"}`}>
+            {unlocked ? offer.plan : "Offre"}
+          </div>
         </div>
+        {!unlocked && (
+          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-full">🔒</span>
+        )}
       </div>
 
       {/* Savings — always visible */}
@@ -223,17 +233,22 @@ function OfferCard({
 
       {/* CTA */}
       <a
-        href={offer.url ?? "#"}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => track("offer_clicked", { provider: offer.provider, vertical: "electricity", rank })}
+        href={unlocked ? (offer.url ?? "#") : undefined}
+        target={unlocked ? "_blank" : undefined}
+        rel={unlocked ? "noopener noreferrer" : undefined}
+        onClick={(e) => {
+          if (!unlocked) { e.preventDefault(); return; }
+          track("offer_clicked", { provider: offer.provider, vertical: "electricity", rank });
+        }}
         className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
-          rank === 0
-            ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
-            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          !unlocked
+            ? "bg-slate-100 text-slate-400 cursor-default"
+            : rank === 0
+              ? "bg-emerald-500 text-white hover:bg-emerald-600 animate-cta-glow"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
-        {rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
+        {!unlocked ? "🔒 Débloque pour voir l'offre" : rank === 0 ? "Économise maintenant →" : "Voir cette offre →"}
       </a>
     </div>
   );
@@ -242,12 +257,16 @@ function OfferCard({
 /* ──────────── Main ResultCards ──────────── */
 interface ResultCardsProps {
   data: ResultJson;
+  scanId?: string;
+  initialUnlocked?: boolean;
 }
 
-export function ResultCards({ data }: ResultCardsProps) {
+export function ResultCards({ data, scanId, initialUnlocked = false }: ResultCardsProps) {
+  const [unlocked, setUnlocked] = useState(initialUnlocked);
+
   // ── Route to telecom renderer if vertical = telecom ──
   if (data.vertical === "telecom") {
-    return <TelecomResultCards data={data as unknown as TelecomResultJson} />;
+    return <TelecomResultCards data={data as unknown as TelecomResultJson} scanId={scanId} unlocked={unlocked} onUnlocked={() => setUnlocked(true)} />;
   }
 
   const { bill, offers, engagement } = data;
@@ -417,14 +436,24 @@ export function ResultCards({ data }: ResultCardsProps) {
       {/* Offers */}
       {hasOffers && !bill.needs_full_annual_invoice && (
         <>
-          <div className="text-[13px] text-slate-500 font-semibold uppercase tracking-wider">
-            Offres potentiellement plus avantageuses
+          <div>
+            <div className="text-[13px] text-slate-500 font-semibold uppercase tracking-wider">
+              Offres potentiellement plus avantageuses
+            </div>
+            <div className="text-[12px] text-slate-400 mt-0.5">
+              Pas 50 offres incompréhensibles, juste les meilleures pour toi.
+            </div>
           </div>
           <div className="flex flex-col gap-3.5">
             {offers.map((o, i) => (
-              <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} />
+              <OfferCard key={i} offer={o} rank={i} engagement={engagement} billAnnualTtc={bill.total_annual_ttc_eur} unlocked={unlocked} />
             ))}
           </div>
+
+          {/* Email gate */}
+          {!unlocked && scanId && (
+            <EmailGate scanId={scanId} onUnlocked={() => setUnlocked(true)} />
+          )}
         </>
       )}
 

@@ -15,6 +15,7 @@ type ScanRecord = {
   resultJson: ResultJson | null;
   originalName?: string;
   createdAt?: string;
+  email?: string | null;
 };
 
 type ScanApiResponse =
@@ -155,7 +156,7 @@ export default function ResultPage() {
     <div className="px-5 py-6 pb-16 max-w-xl mx-auto">
       {scan.resultJson ? (
         <>
-          <ResultCards data={scan.resultJson} />
+          <ResultCards data={scan.resultJson} scanId={id} initialUnlocked={!!scan.email} />
 
           {/* Belgium-specific GRD note */}
           {scan.resultJson.bill?.country === "BE" && (
