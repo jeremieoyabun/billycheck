@@ -368,27 +368,21 @@ export function ResultCards({ data }: ResultCardsProps) {
           La TVA et une partie des taxes sont réglementées, et Billy estime le réseau selon ta région/GRD.
         </p>
 
-        {/* Prosumer badge */}
+        {/* Prosumer note */}
         {bill.prosumer_detected && (
-          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed flex items-start gap-2">
-            <span className="text-base leading-none mt-0.5">☀️</span>
-            <div>
-              <span className="font-semibold">Panneaux photovoltaïques détectés (prosumer)</span>
-              {bill.prosumer_annual_eur != null && bill.prosumer_annual_eur > 0 ? (
-                <span className="ml-1">— redevance estimée {fmt(bill.prosumer_annual_eur)} €/an</span>
-              ) : (
-                <span className="ml-1 text-amber-600">— montant redevance non détecté sur la facture</span>
-              )}
-            </div>
-          </div>
+          <p className="mt-2 text-[11px] text-slate-500 italic">
+            ☀️ Prosumer détecté
+            {bill.prosumer_annual_eur != null && bill.prosumer_annual_eur > 0
+              ? ` — redevance estimée ${fmt(bill.prosumer_annual_eur)} €/an (identique chez tous les fournisseurs)`
+              : " — montant redevance non détecté sur la facture"}
+          </p>
         )}
 
-        {/* Loss aversion nudge */}
+        {/* Loss aversion */}
         {hasOffers && !bill.needs_full_annual_invoice && offers[0]?.estimated_savings > 0 && (
-          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800 leading-relaxed font-medium">
-            💸 En restant chez <strong>{bill.provider ?? "ton fournisseur"}</strong>, tu perds environ{" "}
-            <strong className="text-red-600">~{offers[0].estimated_savings}€ par an</strong>.
-          </div>
+          <p className="mt-3 text-sm text-red-600 font-semibold">
+            💸 En restant chez {bill.provider ?? "ton fournisseur"}, tu perds ~{offers[0].estimated_savings}€ par an.
+          </p>
         )}
 
         {bill.needs_full_annual_invoice && (
@@ -400,17 +394,14 @@ export function ResultCards({ data }: ResultCardsProps) {
         )}
 
         {bill.billing_period && (
-          <div className="mt-2 text-xs text-slate-400">
-            📅 Période analysée : <span className="text-slate-600">{bill.billing_period}</span>
-          </div>
+          <p className="mt-2 text-[11px] text-slate-400">
+            📅 Période : {bill.billing_period}
+          </p>
         )}
 
-        {!bill.needs_full_annual_invoice && (
-          <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
-            ℹ️ Ces données ont été extraites automatiquement. Vérifie qu'elles correspondent bien à
-            ta situation.
-          </div>
-        )}
+        <p className="mt-2 text-[11px] text-slate-400 italic">
+          * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
+        </p>
       </div>
 
       {/* Offers */}

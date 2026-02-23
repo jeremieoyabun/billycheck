@@ -301,17 +301,16 @@ export function TelecomResultCards({ data }: TelecomResultCardsProps) {
             )}
           </div>
 
-          {/* Loss aversion nudge */}
+          {/* Loss aversion */}
           {hasOffers && offers[0]?.estimated_annual_savings > 0 && (
-            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-sm text-red-800 leading-relaxed font-medium">
-              💸 En restant chez <strong>{telecom.provider ?? "ton opérateur"}</strong>, tu perds environ{" "}
-              <strong className="text-red-600">~{offers[0].estimated_annual_savings}€ par an</strong>.
-            </div>
+            <p className="mt-3 text-sm text-red-600 font-semibold">
+              💸 En restant chez {telecom.provider ?? "ton opérateur"}, tu perds ~{offers[0].estimated_annual_savings}€ par an.
+            </p>
           )}
 
-          <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
-            Ces données ont ete extraites automatiquement. Verifie qu'elles correspondent a ta situation.
-          </div>
+          <p className="mt-2 text-[11px] text-slate-400 italic">
+            * Données extraites automatiquement — vérifie qu'elles correspondent à ta situation.
+          </p>
         </div>
       )}
 
