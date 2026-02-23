@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Billy } from "./Billy";
 import { ChatBubble } from "./ChatBubble";
 import { ShareButton } from "./ShareButton";
 import { track } from "@/lib/analytics";
+import { getProviderLogo } from "@/lib/provider-logos";
 import type { ExtractedTelecomBill, TelecomOffer } from "@/lib/analyze-telecom";
 
 /* ──────────────────────────────────────────────
@@ -68,6 +70,12 @@ function TelecomOfferCard({ offer, rank, mobileLines, billMonthly }: { offer: Te
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-3">
         <span className="text-2xl">{medals[rank] ?? "•"}</span>
+        {(() => {
+          const logo = getProviderLogo(offer.provider);
+          return logo ? (
+            <Image src={logo} alt={offer.provider} width={32} height={32} className="rounded-md object-contain" />
+          ) : null;
+        })()}
         <div className="flex-1 min-w-0">
           <div className="font-bold text-base text-slate-900">{offer.provider}</div>
           <div className="text-[13px] text-slate-500">{offer.plan}</div>
